@@ -1,0 +1,1314 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ролик из HTML</title>
+<style id="player-css">
+/* Плеер «Ролик из HTML». Все классы интерфейса начинаются с p-, чтобы не задевать сцены */
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--ui-bg); color: var(--ui-fg); overflow: hidden;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  --ui-bg: #121316; --ui-fg: #ECECEE; --ui-mute: #86878D; --ui-line: #232428; --ui-line2: #393A40;
+  --ui-hi: #FFFFFF; --ui-rec: #FF4D3D; --ui-pop: #1B1C20; --pad: 24px;
+}
+
+/* Сверху название и кнопки, в середине кадр, снизу управление, таймлайн из блоков сцен и клавиши */
+.p-app {
+  display: grid; height: 100vh; min-height: 0;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 46px 1fr 44px 70px auto;
+  grid-template-areas: "title actions" "view view" "transport modes" "timeline timeline" "keys keys";
+}
+.p-app > *, .p-status { box-sizing: border-box; min-width: 0; }
+
+.p-btn {
+  appearance: none; border: 0; background: none; color: var(--ui-mute);
+  font: inherit; padding: 6px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+}
+.p-btn:hover, .p-btn.p-on { color: var(--ui-fg); }
+.p-btn:focus-visible { outline: 1px solid var(--ui-line2); }
+.p-btn.p-recbtn::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ui-rec); margin-right: 7px; vertical-align: 1px;
+}
+.p-btn.p-strong { background: var(--ui-fg); color: var(--ui-bg); padding: 6px 12px; }
+.p-btn.p-strong:hover { opacity: .9; }
+.p-unsaved { color: #FFB4AA; padding: 0 4px; white-space: nowrap; }
+.p-linked { color: #7FD49B; padding: 6px 8px; white-space: nowrap; cursor: default; }
+.p-actions [hidden] { display: none; }
+.p-play { color: var(--ui-fg); padding: 6px; display: grid; place-items: center; }
+.p-play svg { display: block; }
+
+.p-title { grid-area: title; display: flex; align-items: center; gap: 10px; padding: 0 16px; overflow: hidden; white-space: nowrap; }
+.p-title b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.p-title span { color: var(--ui-mute); }
+.p-actions { grid-area: actions; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 10px; }
+.p-status { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); padding: 8px 14px; border-radius: 8px; background: var(--ui-fg); color: var(--ui-bg); pointer-events: none; opacity: 0; z-index: 20; }
+.p-status.p-on { opacity: 1; }
+
+.p-view { grid-area: view; position: relative; min-height: 0; overflow: hidden; }
+.p-frame { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); overflow: hidden; }
+.p-stage {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden;
+  /* значения по умолчанию, ролик меняет их в reel({ css }) */
+  --bg: #0B0D10; --fg: #FFFFFF; --accent: #3D7CFF;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg); color: var(--fg); font: 400 16px/1.2 var(--font);
+}
+.p-slot { position: absolute; inset: 0; display: none; }
+.p-slot.p-on { display: block; }
+.p-slot > .p-scene { position: absolute; inset: 0; }
+.p-err {
+  position: absolute; left: 12px; right: 12px; bottom: 12px; display: none;
+  padding: 10px 12px; border-radius: 8px; background: rgba(20, 0, 0, .85); color: #FFB4AA;
+  font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap;
+}
+.p-err.p-on { display: block; }
+.p-empty { position: absolute; inset: 0; display: none; place-items: center; text-align: center; color: var(--ui-mute); font-size: 15px; }
+.p-empty.p-on { display: grid; }
+
+.p-transport { grid-area: transport; display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; }
+.p-now { display: flex; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; }
+.p-now b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.p-now span, .p-total { color: var(--ui-mute); font-variant-numeric: tabular-nums; }
+.p-clock { display: flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; }
+.p-clock input {
+  width: 5.5ch; padding: 3px 4px; margin: 0 -4px; border: 0; border-radius: 4px; background: none;
+  color: var(--ui-fg); font: inherit; font-variant-numeric: tabular-nums; text-align: right;
+}
+.p-clock input:hover, .p-clock input:focus { outline: none; background: var(--ui-line); }
+.p-modes { grid-area: modes; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 10px; height: 44px; }
+.p-sep { width: 16px; }
+.p-cap { color: var(--ui-mute); padding: 0 2px 0 0; }
+.p-keys { grid-area: keys; display: flex; gap: 24px; padding: 0 16px 12px; color: var(--ui-mute); font-size: 12px; white-space: nowrap; overflow: hidden; }
+
+/* Таймлайн: сверху шкала секунд, под ней блоки сцен. Правый край блока тянется и меняет длину сцены */
+.p-timeline { grid-area: timeline; position: relative; height: 62px; margin: 0 16px 8px; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
+.p-ruler { position: absolute; left: 0; right: 0; top: 0; height: 18px; pointer-events: none; }
+.p-tick { position: absolute; bottom: 0; width: 1px; height: 4px; background: var(--ui-line2); }
+.p-tick.p-major { height: 8px; background: var(--ui-mute); }
+.p-tick i { position: absolute; left: 4px; bottom: 2px; font-style: normal; font-size: 11px; line-height: 1; color: var(--ui-mute); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-blocks { position: absolute; left: 0; right: 0; top: 22px; height: 40px; }
+.p-block { position: absolute; top: 0; bottom: 0; }
+.p-bar { position: absolute; top: 0; bottom: 0; left: 0; right: 2px; border-radius: 3px; background: var(--ui-line); }
+.p-label { position: absolute; top: 0; bottom: 0; left: 0; right: 2px; padding: 0 9px; line-height: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ui-mute); font-size: 12px; pointer-events: none; }
+.p-label em { font-style: normal; color: var(--ui-mute); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.p-block.p-on .p-label { color: var(--ui-fg); }
+.p-grip { position: absolute; top: 0; bottom: 0; right: -4px; width: 10px; cursor: ew-resize; z-index: 2; }
+.p-grip::after { content: ""; position: absolute; top: 9px; bottom: 9px; left: 3px; width: 2px; border-radius: 1px; background: var(--ui-fg); opacity: 0; }
+.p-block:hover .p-grip::after, .p-grip.p-on::after { opacity: .7; }
+.p-timeline.p-resizing, .p-timeline.p-resizing * { cursor: ew-resize; }
+.p-block.p-on .p-bar { background: var(--ui-line2); }
+.p-block.p-bad .p-label { color: #FF7A6B; }
+.p-head { position: absolute; top: 14px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ui-hi); pointer-events: none; }
+.p-ghost { position: absolute; top: 14px; bottom: -4px; width: 1px; background: var(--ui-mute); opacity: 0; pointer-events: none; }
+.p-ghost i { position: absolute; top: -16px; left: 6px; padding: 0 3px; background: var(--ui-bg); font-style: normal; font-size: 11px; color: var(--ui-fg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-timeline:hover .p-ghost { opacity: 1; }
+
+/* Режим записи: только кадр, на весь экран, без курсора */
+body.p-recording .p-app { grid-template-columns: 1fr; grid-template-rows: 1fr; grid-template-areas: "view"; }
+body.p-recording .p-app > :not(.p-view), body.p-recording .p-status, body.p-recording .p-err { display: none !important; }
+body.p-recording .p-view { cursor: none; }
+
+.p-paste {
+  width: min(860px, calc(100vw - 48px)); padding: 0; border: 0; border-radius: 12px;
+  background: var(--ui-pop); color: var(--ui-fg);
+}
+.p-paste::backdrop { background: rgba(0, 0, 0, .6); }
+.p-paste form { display: grid; gap: 12px; padding: 20px; }
+.p-paste h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.p-paste p { margin: 0; color: var(--ui-mute); }
+.p-paste textarea {
+  width: 100%; height: 52vh; box-sizing: border-box; resize: vertical; padding: 12px; border: 0; border-radius: 8px;
+  background: var(--ui-line); color: var(--ui-fg); font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2;
+}
+.p-paste textarea:focus { outline: none; }
+.p-paste .p-msg { color: #FF7A6B; white-space: pre-wrap; }
+.p-ask textarea { height: 76px; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.p-ask pre { margin: 0; max-height: 28vh; overflow: auto; padding: 12px; border-radius: 8px; background: var(--ui-line); color: var(--ui-mute); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; }
+.p-check { display: flex; align-items: center; gap: 8px; color: var(--ui-mute); cursor: pointer; }
+.p-paste .p-msg:empty { display: none; }
+.p-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.p-grow { flex: 1; }
+.p-btn.p-primary { background: var(--ui-fg); color: var(--ui-bg); padding: 8px 14px; }
+.p-btn.p-primary:hover { opacity: .9; }
+</style>
+</head>
+<body>
+
+<!--
+  СЦЕНЫ РОЛИКА. Код сцен пишется в блоке ниже, по договору из «Инструкция для ИИ.md».
+  Отметки «//// ...» делят код на части, каждая часть выполняется отдельно.
+  Код плеера ниже этого блока править не нужно.
+-->
+<script type="text/plain" id="reel-scenes">
+// Пример ролика на три сцены. Так выглядит ответ ИИ по инструкции
+
+reel({
+  title: 'Ролик из HTML',
+  fps: 24,
+  css: `
+    :root {
+      --bg: #0B0D10;
+      --fg: #FFFFFF;
+      --accent: #3D7CFF;
+      --c1: #3D7CFF; --c2: #22C1A6; --c3: #FFC53D; --c4: #FF6B4A; --c5: #B26BFF;
+      /* Свой шрифт. Если он установлен на компьютере, впишите его название первым,
+         например "SB Sans Display", system-ui, sans-serif */
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+  `
+})
+
+// Сцена 1. Название набирается по букве. Даже каретка мигает от времени t, а не CSS-анимацией
+scene({
+  name: 'Титул',
+  dur: 2,
+  note: 'Название набирается по букве, каретка цвета акцента',
+  html: `<div class="title"><span class="txt"></span><i class="caret"></i></div>`,
+  css: `
+    .title { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+             font-weight: 700; font-size: 154px; letter-spacing: -0.02em; white-space: pre; }
+    .caret { display: block; width: 0.07em; height: 0.78em; margin-left: 0.05em; background: var(--accent); }
+  `,
+  draw({ t, $ }) {
+    const text = 'Ролик из HTML'
+    const n = Math.min(text.length, Math.floor(R.snap(t, 24) / 0.07))    // буква каждые 70 мс
+    $('.txt').textContent = text.slice(0, n)
+    const blink = Math.floor(t / 0.5) % 2 === 0                           // мигание раз в 0,5 с
+    $('.caret').style.visibility = n < text.length || blink ? 'visible' : 'hidden'
+    const s = 1 - 0.03 * R.ease.inOut(R.prog(t, 1.2, 0.8))               // лёгкий отъезд в конце
+    $('.title').style.transform = `scale(${s})`
+  }
+})
+
+// Пресет «короткие фразы как в рекламе Apple». Числа сняты покадрово с референса
+const FPS = 24, F = 1 / FPS
+
+function phrases(name, lines, { life = 1.2, first = 0.43, enter = true } = {}) {
+  return {
+    name,
+    dur: lines.length * life,
+    note: lines.map(l => l.join(' ')).join(' / '),
+    html: lines.map(([a, b]) =>
+      `<div class="line"><span>${a}</span><span class="add"><span>&nbsp;${b}</span></span></div>`).join(''),
+    css: `
+      .line { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+              font-weight: 700; font-size: 154px; line-height: 1.25; letter-spacing: -0.015em; white-space: nowrap; }
+      .add { display: flex; justify-content: flex-end; overflow: hidden; }
+      .add > span { flex: none; }
+    `,
+    draw({ t, $$, w }) {
+      t = R.snap(t, FPS)                                          // рубленая сетка 24 кадра в секунду
+      const k = Math.min(lines.length - 1, Math.floor(t / life))  // какая строка сейчас
+      $$('.line').forEach((line, i) => {
+        line.style.display = i === k ? '' : 'none'               // склейка: кадр старой строки, следующий кадр новой
+        if (i !== k) return
+        const lt = t - k * life                                   // время внутри строки
+        const add = line.lastElementChild, word = add.firstElementChild
+        add.style.width = word.offsetWidth * R.ease.inOutQuint(R.prog(lt, first, 0.25)) + 'px'  // дописывание 250 мс
+        word.style.visibility = lt >= first + 0.167 ? 'visible' : 'hidden'  // слово возникает за 83 мс до остановки
+        let s = 1 - 0.15 * lt                                     // непрерывный отъезд, -15 % в секунду
+        if (lt >= life - 2 * F) s -= lt >= life - F ? 0.03 : 0.01 // разгон перед склейкой
+        if (k > 0 || !enter) s *= 1 + 0.05 * (1 - R.ease.out(R.prog(lt, 0, 0.06)))  // удар +5 % на склейке
+        const x = k === 0 && enter ? -0.15 * w * (1 - R.ease.enter(R.prog(lt, 0, 0.417))) : 0  // въезд слева
+        line.style.transform = `translateX(${x}px) scale(${s})`
+      })
+    }
+  }
+}
+
+// Сцена 2. Три строки по пресету
+scene(phrases('Фразы', [
+  ['Текст', 'настоящий.'],
+  ['Цвет', 'из бренда.'],
+  ['Правка', 'за минуту.'],
+]))
+
+// Сцена 3. Цвета бренда из переменных: точки встают по одной и собираются в полосу
+scene({
+  name: 'Цвета',
+  dur: 2.4,
+  note: 'Пять точек цветов бренда встают по одной и сливаются в полосу, снизу подпись',
+  html: `
+    <div class="row">${[1, 2, 3, 4, 5].map(i => `<i style="background: var(--c${i})"></i>`).join('')}</div>
+    <p class="cap">Ваш шрифт и ваши цвета</p>`,
+  css: `
+    .row { position: absolute; left: 50%; top: 44%; display: flex; transform: translate(-50%, -50%); }
+    .row i { display: block; height: 120px; }
+    .cap { position: absolute; left: 0; right: 0; top: 60%; margin: 0; text-align: center;
+           font-size: 64px; font-weight: 600; letter-spacing: -0.01em; }
+  `,
+  draw({ t, $, $$ }) {
+    t = R.snap(t, 24)
+    const join = R.ease.inOutQuint(R.prog(t, 1.25, 0.5))             // точки сливаются в полосу
+    $$('.row i').forEach((dot, i) => {
+      const k = R.ease.out(R.prog(t, i * 0.2, 0.25))                  // точка встаёт за 0,25 с, по одной
+      const r = R.mix(60, 0, join)                                    // скругление между точками уходит
+      dot.style.width = R.mix(120, 200, join) + 'px'
+      dot.style.marginLeft = i ? R.mix(40, 0, join) + 'px' : '0'
+      dot.style.borderRadius = `${i === 0 ? 60 : r}px ${i === 4 ? 60 : r}px ${i === 4 ? 60 : r}px ${i === 0 ? 60 : r}px`
+      dot.style.transform = `scale(${k})`
+    })
+    $('.cap').style.visibility = t >= 1.8 ? 'visible' : 'hidden'     // подпись встаёт склейкой, без проявления
+  }
+})
+</script>
+
+<div class="p-app">
+  <div class="p-title"><b></b><span></span></div>
+  <div class="p-actions">
+    <button class="p-btn" data-act="code" title="Вставить код сцен из чата">Код</button>
+    <button class="p-btn" data-act="ask" title="Скопировать запрос на правку этой сцены для ИИ">Для&nbsp;ИИ</button>
+    <button class="p-btn" data-act="link" title="Плеер сам сохраняет изменения в файл и сам показывает правки ИИ в нём" hidden>Связать с&nbsp;файлом</button>
+    <span class="p-linked" hidden></span>
+    <span class="p-unsaved" hidden>Не сохранено</span>
+    <button class="p-btn" data-act="save" title="Сохранить ролик файлом">Сохранить</button>
+    <button class="p-btn p-recbtn" data-act="rec" title="Кадр на весь экран без интерфейса">Запись</button>
+  </div>
+  <div class="p-view">
+    <div class="p-frame">
+      <div class="p-stage"></div>
+      <div class="p-empty">Здесь будет ролик<br>Нажмите «Код» и&nbsp;вставьте код сцен из&nbsp;чата</div>
+      <div class="p-err"></div>
+    </div>
+  </div>
+  <div class="p-transport">
+    <button class="p-btn p-play" data-act="play" title="Пуск и пауза, пробел"></button>
+    <div class="p-clock"><input value="0,00" title="Впишите время и нажмите Enter" aria-label="Время"><span class="p-total">/ 0,00</span></div>
+    <div class="p-now"><b></b><span></span></div>
+  </div>
+  <div class="p-timeline"><div class="p-ruler"></div><div class="p-blocks"></div><div class="p-ghost"><i></i></div><div class="p-head"></div></div>
+  <div class="p-modes">
+    <span class="p-cap" title="Длина сцены кратна шагу, когда тянете край сцены">Шаг</span>
+    <button class="p-btn" data-grid="0.5" title="Длина сцены кратна 0,5 с">0,5&nbsp;с</button>
+    <button class="p-btn" data-grid="1" title="Длина сцены кратна 1 с">1&nbsp;с</button>
+    <button class="p-btn" data-grid="2" title="Длина сцены кратна 2 с">2&nbsp;с</button>
+    <button class="p-btn" data-grid="0.1" title="Любая длина с точностью 0,1 с">без шага</button>
+    <span class="p-sep"></span>
+    <button class="p-btn" data-speed="1" title="Скорость 1×, клавиша 1">1×</button>
+    <button class="p-btn" data-speed="0.5" title="Скорость 0,5×, клавиша 2">0,5×</button>
+    <button class="p-btn" data-speed="0.25" title="Скорость 0,25×, клавиша 3">0,25×</button>
+    <span class="p-sep"></span>
+    <button class="p-btn" data-act="loop" title="Крутить одну сцену, клавиша L">Повтор сцены</button>
+  </div>
+  <div class="p-keys"><span>Пробел пуск</span><span>← → кадр</span><span>Shift и&nbsp;← → секунда</span><span>↑ ↓ сцена</span><span>L повтор сцены</span><span>1 2 3 скорость</span><span>Край сцены тяните, чтобы изменить длину</span></div>
+</div>
+
+<div class="p-status"></div>
+
+<dialog class="p-paste">
+  <form method="dialog">
+    <h2>Код сцен</h2>
+    <p>Вставьте код из&nbsp;чата. Сцена с&nbsp;тем&nbsp;же названием заменится, новая встанет в&nbsp;конец</p>
+    <textarea spellcheck="false" placeholder="scene({ name: 'Название', dur: 2, html: `...`, draw({ t, $ }) { ... } })"></textarea>
+    <p class="p-msg"></p>
+    <div class="p-row">
+      <button class="p-btn p-primary" value="put">Поставить</button>
+      <button class="p-btn" value="replace">Заменить весь ролик</button>
+      <span class="p-grow"></span>
+      <button class="p-btn" value="show">Показать весь код</button>
+      <button class="p-btn" value="close">Закрыть</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="p-paste p-ask">
+  <form method="dialog">
+    <h2>Для ИИ</h2>
+    <p class="p-where"></p>
+    <textarea class="p-what" spellcheck="true" placeholder="Что поправить. Например, слово появляется раньше, чем нужно"></textarea>
+    <label class="p-check"><input type="checkbox" class="p-withcode">Добавить код сцены, это нужно для обычного чата</label>
+    <pre></pre>
+    <p class="p-msg"></p>
+    <div class="p-row">
+      <button class="p-btn p-primary" value="copy">Скопировать запрос</button>
+      <span class="p-grow"></span>
+      <button class="p-btn" value="close">Закрыть</button>
+    </div>
+  </form>
+</dialog>
+
+<script id="player">
+'use strict'
+;(() => {
+// Копия страницы до запуска плеера, из неё собирается файл при сохранении
+const SOURCE = '<!doctype html>\n' + document.documentElement.outerHTML
+
+const $ = (s, r = document) => r.querySelector(s)
+const $$ = (s, r = document) => [...r.querySelectorAll(s)]
+const NB = ' '
+const fmt = x => (Math.round(x * 100) / 100).toFixed(2).replace('.', ',')
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+
+// ---------- Помощники для сцен: R.* ----------
+const R = (() => {
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+  const mix = (a, b, k) => a + (b - a) * k
+  const prog = (t, start, dur) => dur > 0 ? clamp((t - start) / dur) : (t >= start ? 1 : 0)
+  // Кривая как cubic-bezier в CSS
+  function bezier(x1, y1, x2, y2) {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by
+    const fx = u => ((ax * u + bx) * u + cx) * u
+    const fy = u => ((ay * u + by) * u + cy) * u
+    const dx = u => (3 * ax * u + 2 * bx) * u + cx
+    return x => {
+      if (x <= 0) return 0
+      if (x >= 1) return 1
+      let u = x
+      for (let i = 0; i < 8; i++) {
+        const e = fx(u) - x
+        if (Math.abs(e) < 1e-7) return fy(u)
+        const d = dx(u)
+        if (Math.abs(d) < 1e-6) break
+        u -= e / d
+      }
+      let lo = 0, hi = 1
+      u = x
+      for (let i = 0; i < 50; i++) {
+        const v = fx(u)
+        if (Math.abs(v - x) < 1e-7) break
+        if (v < x) lo = u; else hi = u
+        u = (lo + hi) / 2
+      }
+      return fy(u)
+    }
+  }
+  const ease = {
+    linear: x => clamp(x),
+    in: bezier(0.42, 0, 1, 1),
+    out: bezier(0, 0, 0.58, 1),
+    inOut: bezier(0.42, 0, 0.58, 1),
+    outCubic: bezier(0.33, 1, 0.68, 1),
+    inOutCubic: bezier(0.65, 0, 0.35, 1),
+    inOutQuint: bezier(0.83, 0, 0.17, 1),    // дописывание слова в рекламе Apple
+    enter: bezier(0.094, 0.656, 0.383, 1),   // въезд первой строки в рекламе Apple
+  }
+  const snap = (t, fps = 24) => Math.floor(t * fps + 1e-6) / fps
+  // Ключи: R.keys(t, [[0, 0], [0.4, 1, R.ease.out], [1, 1]]). Значение числом или массивом чисел
+  function keys(t, list) {
+    if (!list || !list.length) return 0
+    if (t <= list[0][0]) return list[0][1]
+    for (let i = 1; i < list.length; i++) {
+      const [t1, v1, e] = list[i]
+      if (t <= t1) {
+        const [t0, v0] = list[i - 1]
+        const k = (e || ease.linear)(t1 > t0 ? (t - t0) / (t1 - t0) : 1)
+        return Array.isArray(v0) ? v0.map((a, j) => mix(a, v1[j], k)) : mix(v0, v1, k)
+      }
+    }
+    return list[list.length - 1][1]
+  }
+  // Случайное число от 0 до 1, одно и то же для одного номера
+  const rand = n => { const x = Math.sin((n + 1) * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x) }
+  return { clamp, mix, prog, bezier, ease, snap, keys, rand }
+})()
+window.R = R
+
+// ---------- Код сцен: части, сборка, ошибки ----------
+let chunks = []          // [{ label, code }]
+let opts = {}            // настройки из reel()
+let scenes = []          // [{ name, dur, html, css, draw, note, start, slot, el }]
+let total = 0
+let uid = 0
+
+function splitChunks(text) {
+  const out = []
+  let label = 'основа', buf = []
+  const push = () => { const code = buf.join('\n').replace(/^\s*\n/, '').replace(/\s+$/, ''); if (code.trim()) out.push({ label, code }) }
+  for (const line of String(text).replace(/\r\n?/g, '\n').split('\n')) {
+    const m = line.match(/^\/\/\/\/\s?(.*)$/)
+    if (m) { push(); label = m[1].trim() || 'код'; buf = [] } else buf.push(line)
+  }
+  push()
+  return out
+}
+
+function codeOf(list) {
+  if (list.length === 1 && list[0].label === 'основа') return list[0].code
+  return list.map(c => `//// ${c.label}\n${c.code}`).join('\n\n')
+}
+const codeText = () => codeOf(chunks)
+
+// Подсказка к частым ошибкам. Сам текст ошибки оставляем: его удобно переслать ИИ
+function hint(msg) {
+  if (/of (null|undefined) \(reading/.test(msg)) return `\n$('...') не${NB}нашёл элемент. Проверьте, что такой класс есть в${NB}html сцены`
+  if (/is not defined/.test(msg)) return `\nВ${NB}коде используется имя, которое нигде не${NB}объявлено`
+  if (/is not a function/.test(msg)) return `\nВызывается то, что не${NB}является функцией. Проверьте названия R.ease и${NB}других помощников`
+  return ''
+}
+
+function lineOf(err) {
+  const m = String(err && err.stack || '').match(/reel-chunk-\d+\.js:(\d+):\d+/)
+  return m ? Math.max(1, +m[1] - 2) : 0
+}
+
+function build(list) {
+  const o = { title: 'Ролик', fps: 30, width: 1920, height: 1080, css: [], lengths: {}, grid: 0 }
+  const byName = new Map(), order = [], per = []
+  list.forEach((ch, ci) => {
+    const names = [], seen = new Set()
+    let hasReel = false
+    const scene = def => {
+      if (!def || typeof def !== 'object') throw new Error('scene() ждёт объект: scene({ name, dur, html, css, draw })')
+      let name = String(def.name == null ? '' : def.name).trim() || `Сцена ${order.length + 1}`
+      if (seen.has(name)) { let k = 2; while (seen.has(`${name} ${k}`)) k++; name = `${name} ${k}` }
+      seen.add(name)
+      const dur = Number(def.dur)
+      if (!(dur > 0)) throw new Error(`У${NB}сцены «${name}» нет длительности. Нужно dur: число секунд`)
+      if (def.draw != null && typeof def.draw !== 'function') throw new Error(`У${NB}сцены «${name}» draw должна быть функцией`)
+      const s = { name, dur, html: def.html == null ? '' : String(def.html), css: def.css == null ? '' : String(def.css),
+                  draw: def.draw || null, note: def.note == null ? '' : String(def.note), chunk: ci, src: ch }
+      if (!byName.has(name)) order.push(name)
+      byName.set(name, s)
+      names.push(name)
+      return s
+    }
+    const reel = (r = {}) => {
+      hasReel = true
+      if (r.title != null) o.title = String(r.title)
+      if (+r.fps > 0) o.fps = +r.fps
+      if (+r.width > 0) o.width = +r.width
+      if (+r.height > 0) o.height = +r.height
+      if (r.css) o.css.push(String(r.css))
+      if (+r.grid > 0) o.grid = +r.grid
+      if (r.lengths && typeof r.lengths === 'object') Object.assign(o.lengths, r.lengths)
+    }
+    let fn
+    try {
+      fn = new Function('scene', 'reel', 'R', ch.code + `\n//# sourceURL=reel-chunk-${ci}.js`)
+    } catch (e) {
+      throw new Error(`В${NB}коде ошибка записи: ${e.message}. Проверьте, что код скопирован целиком, до последней скобки`)
+    }
+    try { fn(scene, reel, R) } catch (e) {
+      const ln = lineOf(e)
+      throw new Error(`${e.message}${ln ? ` (строка ${ln})` : ''}${hint(e.message)}`)
+    }
+    per.push({ names, hasReel })
+  })
+  // len это длина сцены в ролике. Если её поменяли в плеере, анимация сцены растягивается под неё
+  const out = order.map(n => byName.get(n))
+  for (const s of out) s.len = +o.lengths[s.name] > 0 ? +o.lengths[s.name] : s.dur
+  return { opts: o, scenes: out, per }
+}
+
+// Убрать части, все сцены которых заменены позже
+function prune(list, res) {
+  return list.filter((ch, ci) => {
+    const p = res.per[ci]
+    if (ci === list.length - 1 || p.hasReel || !p.names.length) return true
+    return p.names.some(n => res.scenes.find(s => s.name === n).chunk === ci)
+  })
+}
+
+// ---------- Стили сцены действуют только внутри сцены ----------
+function splitSel(s) {
+  const out = []
+  let depth = 0, cur = ''
+  for (const ch of s) {
+    if (ch === '(' || ch === '[') depth++
+    else if (ch === ')' || ch === ']') depth--
+    if (ch === ',' && !depth) { out.push(cur); cur = '' } else cur += ch
+  }
+  out.push(cur)
+  return out
+}
+const ROOT_SEL = /^(?::root|html|body|:scope)(?![\w-])/
+function prefixSel(sel, root) {
+  return splitSel(sel).map(x => {
+    x = x.trim()
+    if (!ROOT_SEL.test(x)) return `${root} ${x}`
+    while (ROOT_SEL.test(x)) x = x.replace(ROOT_SEL, '').trim()
+    return x ? `${root} ${x}` : root
+  }).join(', ')
+}
+function scopeCss(css, root) {
+  const tmp = document.createElement('style')
+  tmp.media = 'not all'
+  tmp.textContent = css
+  document.head.append(tmp)
+  const walk = rules => [...rules].map(r => {
+    if (r instanceof CSSStyleRule) return prefixSel(r.selectorText, root) + r.cssText.slice(r.selectorText.length)
+    if (r.cssRules && !(r instanceof CSSKeyframesRule)) {
+      const head = r.cssText.slice(0, r.cssText.indexOf('{'))
+      return `${head}{\n${walk(r.cssRules)}\n}`
+    }
+    return r.cssText
+  }).join('\n')
+  let out = ''
+  try { out = walk(tmp.sheet.cssRules) } catch (e) { out = '' }
+  tmp.remove()
+  return out
+}
+
+// ---------- Сцены на экране ----------
+const stage = $('.p-stage'), frame = $('.p-frame'), view = $('.p-view')
+const errBox = $('.p-err'), emptyBox = $('.p-empty')
+const reelCss = document.createElement('style'), sceneCss = document.createElement('style')
+document.head.append(reelCss, sceneCss)
+
+function placeholder(s) {
+  return `<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:0 160px;text-align:center;color:var(--fg);opacity:.45">
+    <div style="font-weight:600;font-size:96px;line-height:1.1">${esc(s.name)}</div>
+    ${s.note ? `<div style="font-size:36px;line-height:1.3">${esc(s.note)}</div>` : ''}</div>`
+}
+
+function mount(res) {
+  opts = res.opts
+  scenes = res.scenes
+  stage.style.width = opts.width + 'px'
+  stage.style.height = opts.height + 'px'
+  reelCss.textContent = opts.css.map(c => scopeCss(c, '.p-stage')).join('\n')
+  stage.textContent = ''
+  const css = []
+  for (const s of scenes) {
+    s.slot = document.createElement('div')
+    s.slot.className = 'p-slot'
+    s.el = document.createElement('div')
+    s.el.className = 'p-scene'
+    s.el.dataset.scene = 's' + (++uid)
+    s.el.innerHTML = s.html || s.draw ? s.html : placeholder(s)
+    s.slot.append(s.el)
+    stage.append(s.slot)
+    s.$ = q => s.el.querySelector(q)
+    s.$$ = q => [...s.el.querySelectorAll(q)]
+    s.error = null
+    if (s.css) css.push(scopeCss(s.css, `[data-scene="${s.el.dataset.scene}"]`))
+  }
+  sceneCss.textContent = css.join('\n')
+  cur = -1
+  document.title = opts.title
+  $('.p-title b').textContent = opts.title
+  emptyBox.classList.toggle('p-on', !scenes.length)
+  setGrid(opts.grid || grid)
+  buildTimeline()
+  retime()
+  fit()
+  render()
+}
+
+// Начала сцен и общая длина по текущим длинам сцен
+function retime() {
+  let acc = 0
+  for (const s of scenes) { s.start = acc; acc += s.len }
+  total = acc
+  if (!resizing) viewTotal = total
+  T = Math.min(T, total)
+  $('.p-title span').textContent = total ? short(total) + NB + 'с' : ''
+  $('.p-total').textContent = '/ ' + fmt(total)
+  layoutTimeline()
+}
+const short = x => String(Math.round(x * 100) / 100).replace('.', ',')
+
+// ---------- Время и воспроизведение ----------
+// Время берётся от часов, а не копится по кадрам: если браузер подтормозит, ролик не отстанет от музыки
+let T = 0, cur = -1, playing = false, speed = 1, loopScene = false, anchorT = 0, anchorNow = 0
+let inRec = false, grid = 0.5, resizing = false, viewTotal = 0, fileError = ''
+function anchor(now = performance.now()) { anchorT = T; anchorNow = now }
+
+function indexAt(x) {
+  for (let i = 0; i < scenes.length; i++) if (x < scenes[i].start + scenes[i].len) return i
+  return scenes.length - 1
+}
+
+function render() {
+  if (!scenes.length) { updateUI(-1, 0); return }
+  const i = indexAt(T), s = scenes[i]
+  if (i !== cur) {
+    if (scenes[cur]) scenes[cur].slot.classList.remove('p-on')
+    s.slot.classList.add('p-on')
+    cur = i
+  }
+  const local = Math.min(s.len, Math.max(0, T - s.start))   // время сцены в ролике
+  const t = local * s.dur / s.len                            // время сцены по её коду, от 0 до dur
+  if (s.draw) {
+    try {
+      s.draw({ t, p: local / s.len, dur: s.dur, T, el: s.el, $: s.$, $$: s.$$, w: opts.width, h: opts.height })
+      s.error = null
+    } catch (e) {
+      const ln = lineOf(e)
+      s.error = `Сцена «${s.name}»: ${e.message}${ln ? ` (строка ${ln})` : ''}${hint(e.message)}\nПерешлите этот текст в${NB}чат ИИ, он поправит сцену`
+    }
+  }
+  errBox.textContent = s.error || fileError
+  errBox.classList.toggle('p-on', !!(s.error || fileError))
+  updateUI(i, local)
+}
+
+function seek(x) {
+  T = Math.min(total, Math.max(0, x))
+  anchor()
+  render()
+}
+
+function tick(now) {
+  if (!playing) return
+  const s = scenes[cur]
+  T = anchorT + (now - anchorNow) / 1000 * speed
+  if (inRec) {
+    if (T >= total) { T = total; playing = false }
+  } else if (loopScene && s) {
+    if (T >= s.start + s.len || T < s.start) { T = s.start + ((T - s.start) % s.len + s.len) % s.len; anchor(now) }
+  } else if (T >= total) {
+    T = total ? T % total : 0
+    anchor(now)
+  }
+  render()
+  if (playing) requestAnimationFrame(tick)
+  else updatePlay()
+}
+
+function play() {
+  if (!scenes.length || playing) return
+  if (T >= total - 1e-6 && !loopScene) T = 0
+  playing = true
+  anchor()
+  updatePlay()
+  requestAnimationFrame(tick)
+}
+function pause() { playing = false; updatePlay() }
+function toggle() { playing ? pause() : play() }
+
+function step(dir) {
+  pause()
+  const fps = opts.fps || 30
+  seek(Math.round(T * fps + dir) / fps)
+}
+function jumpScene(dir) {
+  if (!scenes.length) return
+  pause()
+  const i = indexAt(T), s = scenes[i]
+  if (dir < 0) seek(T - s.start > 0.15 || i === 0 ? s.start : scenes[i - 1].start)
+  else seek(i < scenes.length - 1 ? scenes[i + 1].start : total)
+}
+function setSpeed(v) {
+  speed = v
+  anchor()
+  $$('[data-speed]').forEach(b => b.classList.toggle('p-on', +b.dataset.speed === v))
+}
+function setLoop(v) {
+  loopScene = v
+  const b = $('[data-act="loop"]')
+  b.classList.toggle('p-on', v)
+  b.setAttribute('aria-pressed', v)
+}
+
+// ---------- Интерфейс ----------
+const ICON_PLAY = '<svg viewBox="0 0 16 16" width="18" height="18"><path d="M4.5 2.5v11l9-5.5z" fill="currentColor"/></svg>'
+const ICON_PAUSE = '<svg viewBox="0 0 16 16" width="18" height="18"><path d="M4 2.5h3v11H4zM9.5 2.5h3v11h-3z" fill="currentColor"/></svg>'
+const clockIn = $('.p-clock input'), timeline = $('.p-timeline'), head = $('.p-head'), ghost = $('.p-ghost')
+let blocks = [], shownCur = -2
+
+function updatePlay() { $('.p-play').innerHTML = playing ? ICON_PAUSE : ICON_PLAY }
+
+function buildTimeline() {
+  const box = $('.p-blocks')
+  box.textContent = ''
+  blocks = scenes.map((s, i) => {
+    const b = document.createElement('div')
+    b.className = 'p-block'
+    b.title = s.note ? `${s.name}. ${s.note}` : s.name
+    b.innerHTML = `<span class="p-bar"></span><span class="p-label">${esc(s.name)}<em></em></span><span class="p-grip" data-i="${i}" title="Тяните, чтобы изменить длину. Двойной щелчок вернёт длину из${NB}кода"></span>`
+    b.addEventListener('dblclick', () => { seek(s.start); setLoop(true); play() })
+    b.querySelector('.p-grip').addEventListener('dblclick', e => { e.stopPropagation(); s.len = s.dur; retime(); saveLengths(); render() })
+    box.append(b)
+    return b
+  })
+  shownCur = -2
+}
+
+// Блоки сцен и шкала секунд по текущим длинам
+function layoutTimeline() {
+  const vt = viewTotal || 1
+  scenes.forEach((s, i) => {
+    const b = blocks[i]
+    if (!b) return
+    b.style.left = (s.start / vt * 100) + '%'
+    b.style.width = (s.len / vt * 100) + '%'
+    b.querySelector('em').textContent = short(s.len) + NB + 'с'
+  })
+  const ruler = $('.p-ruler'), W = timeline.clientWidth
+  if (!W || !viewTotal) { ruler.textContent = ''; return }
+  const pps = W / vt
+  const every = [1, 2, 5, 10, 15, 30, 60].find(v => v * pps >= 44) || 60   // подписи по целым секундам, не теснее 44 px
+  const minor = every === 1 && pps >= 16 ? 0.5 : every === 5 ? 1 : every / 2
+  let html = ''
+  for (let k = 0; k * minor <= vt + 1e-6; k++) {
+    const x = k * minor, major = Math.abs(x / every - Math.round(x / every)) < 1e-6
+    html += `<span class="p-tick${major ? ' p-major' : ''}" style="left:${x / vt * 100}%">${major ? `<i>${short(x)}</i>` : ''}</span>`
+  }
+  ruler.innerHTML = html
+}
+new ResizeObserver(() => layoutTimeline()).observe(timeline)
+
+function setGrid(v) {
+  grid = v
+  $$('[data-grid]').forEach(b => b.classList.toggle('p-on', +b.dataset.grid === v))
+}
+
+// Длины, выставленные в плеере, хранятся отдельной частью кода и сохраняются вместе с роликом
+const LENGTHS = 'длительности из плеера'
+function saveLengths() {
+  const changed = scenes.filter(s => Math.abs(s.len - s.dur) > 1e-6)
+  opts.lengths = Object.fromEntries(changed.map(s => [s.name, s.len]))
+  opts.grid = grid
+  const code = `// Длины сцен, выставленные на таймлайне плеера. Анимация сцены растягивается или сжимается под них
+reel({
+  grid: ${grid},
+  lengths: {
+${changed.map(s => `    ${JSON.stringify(s.name)}: ${s.len},`).join('\n')}
+  },
+})`
+  const i = chunks.findIndex(c => c.label === LENGTHS)
+  if (!changed.length && grid === 0.5) { if (i >= 0) chunks.splice(i, 1) }
+  else if (i >= 0) chunks[i].code = code
+  else chunks.push({ label: LENGTHS, code })
+  noteChange('lengths')
+}
+
+function updateUI(i, t) {
+  if (document.activeElement !== clockIn) clockIn.value = fmt(T)
+  head.style.left = viewTotal ? (T / viewTotal * 100) + '%' : '0'
+  if (i !== shownCur) {
+    blocks.forEach((b, j) => b.classList.toggle('p-on', j === i))
+    shownCur = i
+  }
+  scenes.forEach((s, j) => {
+    if (blocks[j]) blocks[j].classList.toggle('p-bad', !!s.error)
+  })
+  const s = scenes[i]
+  $('.p-now b').textContent = s ? s.name : ''
+  $('.p-now span').textContent = s ? `${fmt(t)} из${NB}${fmt(s.len)}` : ''
+}
+
+function fit() {
+  const pad = inRec ? 0 : parseFloat(getComputedStyle(document.body).getPropertyValue('--pad')) || 0
+  const W = opts.width || 1920, H = opts.height || 1080
+  const aw = Math.max(10, view.clientWidth - pad * 2), ah = Math.max(10, view.clientHeight - pad * 2)
+  const k = Math.min(aw / W, ah / H)
+  frame.style.width = W * k + 'px'
+  frame.style.height = H * k + 'px'
+  stage.style.transform = `scale(${k})`
+}
+new ResizeObserver(fit).observe(view)
+
+// Перемотка по таймлайну
+function timeAtX(clientX) {
+  const r = timeline.getBoundingClientRect()
+  return Math.min(total, Math.max(0, (clientX - r.left) / r.width * viewTotal))
+}
+// Тянем правый край сцены: длина прилипает к шагу, сцены после неё сдвигаются
+function startResize(e, i) {
+  const s = scenes[i], len0 = s.len, x0 = e.clientX
+  const pps = timeline.clientWidth / viewTotal
+  resizing = true
+  timeline.classList.add('p-resizing')
+  e.target.classList.add('p-on')
+  const move = ev => {
+    const len = Math.max(grid, Math.round((len0 + (ev.clientX - x0) / pps) / grid) * grid)   // шаг 0,1 это «без шага»
+    if (Math.abs(len - s.len) < 1e-6) return
+    s.len = Math.round(len * 1000) / 1000
+    viewTotal = Math.max(viewTotal, scenes.reduce((a, x) => a + x.len, 0))
+    retime()
+    render()
+  }
+  const up = () => {
+    timeline.removeEventListener('pointermove', move)
+    timeline.removeEventListener('pointerup', up)
+    resizing = false
+    timeline.classList.remove('p-resizing')
+    e.target.classList.remove('p-on')
+    retime()
+    render()
+    if (Math.abs(s.len - len0) > 1e-6) { saveLengths(); say(`«${s.name}» ${short(s.len)}${NB}с`) }
+  }
+  timeline.addEventListener('pointermove', move)
+  timeline.addEventListener('pointerup', up)
+}
+timeline.addEventListener('pointerdown', e => {
+  if (!scenes.length) return
+  timeline.setPointerCapture(e.pointerId)
+  pause()
+  const grip = e.target.closest('.p-grip')
+  if (grip) { startResize(e, +grip.dataset.i); return }
+  seek(timeAtX(e.clientX))
+  const move = ev => seek(timeAtX(ev.clientX))
+  const up = () => { timeline.removeEventListener('pointermove', move); timeline.removeEventListener('pointerup', up) }
+  timeline.addEventListener('pointermove', move)
+  timeline.addEventListener('pointerup', up)
+})
+timeline.addEventListener('pointermove', e => {
+  const r = timeline.getBoundingClientRect()
+  ghost.style.left = Math.min(r.width, Math.max(0, e.clientX - r.left)) + 'px'
+  ghost.firstChild.textContent = fmt(timeAtX(e.clientX))
+})
+
+// Время можно вписать руками
+clockIn.addEventListener('focus', () => { pause(); setTimeout(() => clockIn.select(), 0) })
+clockIn.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const v = parseFloat(clockIn.value.replace(',', '.').replace(/[^\d.]/g, ''))
+    if (!isNaN(v)) seek(v)
+    clockIn.blur()
+  } else if (e.key === 'Escape') clockIn.blur()
+  e.stopPropagation()
+})
+clockIn.addEventListener('blur', () => { clockIn.value = fmt(T) })
+
+// Кнопки
+document.addEventListener('click', e => {
+  const b = e.target.closest('.p-btn')
+  if (!b || b.closest('dialog')) return
+  if (b.dataset.speed) setSpeed(+b.dataset.speed)
+  else if (b.dataset.grid) { setGrid(+b.dataset.grid); saveLengths() }
+  else if (b.dataset.act === 'play') toggle()
+  else if (b.dataset.act === 'loop') setLoop(!loopScene)
+  else if (b.dataset.act === 'code') openPaste()
+  else if (b.dataset.act === 'save') save()
+  else if (b.dataset.act === 'link') linkFile(stored)
+  else if (b.dataset.act === 'ask') openAsk()
+  else if (b.dataset.act === 'rec') startRec()
+  if (e.detail) b.blur()
+})
+
+// Клавиши. e.code, чтобы работало и в русской раскладке
+const typing = el => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable)
+document.addEventListener('keydown', e => {
+  if (typing(e.target) || $('dialog[open]') || e.metaKey || e.ctrlKey || e.altKey) return
+  if (inRec) {
+    if (e.code === 'Escape') stopRec()
+    else if (e.code === 'Space') { e.preventDefault(); recPlay() }
+    return
+  }
+  const k = e.code
+  if (k === 'Space') toggle()
+  else if (k === 'ArrowLeft') e.shiftKey ? (pause(), seek(T - 1)) : step(-1)
+  else if (k === 'ArrowRight') e.shiftKey ? (pause(), seek(T + 1)) : step(1)
+  else if (k === 'ArrowUp') jumpScene(-1)
+  else if (k === 'ArrowDown') jumpScene(1)
+  else if (k === 'Home') { pause(); seek(0) }
+  else if (k === 'End') { pause(); seek(total) }
+  else if (k === 'KeyL') setLoop(!loopScene)
+  else if (k === 'Digit1') setSpeed(1)
+  else if (k === 'Digit2') setSpeed(0.5)
+  else if (k === 'Digit3') setSpeed(0.25)
+  else return
+  e.preventDefault()
+})
+document.addEventListener('keyup', e => { if (e.code === 'Space' && !typing(e.target)) e.preventDefault() })
+
+let statusTimer = 0
+function say(text) {
+  const el = $('.p-status')
+  el.textContent = text
+  el.classList.add('p-on')
+  clearTimeout(statusTimer)
+  statusTimer = setTimeout(() => el.classList.remove('p-on'), 3500)
+}
+
+// ---------- Режим записи ----------
+// Кадр на весь экран, интерфейса нет. Пробел или щелчок пускают один проход с начала, Esc выход
+let saved = null
+async function startRec() {
+  if (!scenes.length) return
+  saved = { speed, loopScene }
+  pause()
+  setSpeed(1)
+  setLoop(false)
+  inRec = true
+  document.body.classList.add('p-recording')
+  view.style.background = getComputedStyle(stage).getPropertyValue('--bg') || '#000'
+  seek(0)
+  const r = document.documentElement
+  try { await (r.requestFullscreen ? r.requestFullscreen({ navigationUI: 'hide' }) : r.webkitRequestFullscreen()) } catch (e) { /* без полного экрана тоже работает */ }
+  fit()
+}
+const fullEl = () => document.fullscreenElement || document.webkitFullscreenElement
+function recPlay() {
+  pause()
+  T = 0
+  play()
+}
+function stopRec() {
+  if (!inRec) return
+  inRec = false
+  pause()
+  document.body.classList.remove('p-recording')
+  view.style.background = ''
+  if (fullEl()) Promise.resolve(document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen()).catch(() => {})
+  if (saved) { setSpeed(saved.speed); setLoop(saved.loopScene) }
+  fit()
+  render()
+}
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!fullEl() && inRec) stopRec() })
+view.addEventListener('click', () => { if (inRec) recPlay() })
+
+// ---------- Вставка кода из чата ----------
+const dlg = $('.p-paste'), area = $('textarea', dlg), msg = $('.p-msg', dlg)
+
+function openPaste() {
+  pause()
+  msg.textContent = ''
+  dlg.showModal()
+  area.focus()
+}
+
+// Достаём код из того, что вставили: блоки ``` из чата, теги script и style, файл ролика целиком
+function cleanPaste(raw) {
+  let s = String(raw).replace(/\r\n?/g, '\n').trim()
+  const fences = [...s.matchAll(/```[^\n]*\n([\s\S]*?)```/g)]
+  if (fences.length) s = fences.map(m => m[1]).join('\n\n')
+  const block = s.match(/<script[^>]*id=["']reel-scenes["'][^>]*>([\s\S]*?)<\/script>/i)
+  if (block) return block[1]
+  if (/<script[\s>]|<style[\s>]/i.test(s)) {
+    const css = [...s.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n')
+    const js = [...s.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]).join('\n')
+    s = (css.trim() ? `reel({ css: ${JSON.stringify(css)} })\n` : '') + js
+  }
+  return s
+}
+
+function stamp() {
+  const d = new Date(), p = n => String(n).padStart(2, '0')
+  return `вставлено ${p(d.getDate())}.${p(d.getMonth() + 1)}, ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+function apply(raw, mode) {
+  const code = cleanPaste(raw)
+  if (!code.trim()) { msg.textContent = 'Вставьте код сцен'; return false }
+  if (!/\bscene\s*\(|\breel\s*\(/.test(code)) {
+    msg.textContent = `В${NB}коде нет scene(...). Похоже, ИИ написал страницу целиком. Попросите его: «Перепиши по${NB}инструкции, только reel и${NB}scene в${NB}одном блоке»`
+    return false
+  }
+  const add = splitChunks(code)
+  if (mode === 'put') add.forEach((c, i) => { if (c.label === 'основа') c.label = stamp() + (add.length > 1 ? ` (${i + 1})` : '') })
+  const next = mode === 'replace' ? add : [...chunks, ...add]
+  let res
+  try { res = build(next) } catch (e) { msg.textContent = e.message; return false }
+  if (mode === 'replace' && next.length === 1) next[0].label = 'основа'
+  const before = new Map(scenes.map(s => [s.name, s.dur]))
+  const touched = res.per.slice(next.length - add.length).flatMap(p => p.names)
+  chunks = prune(next, res)
+  if (chunks.length !== next.length) res = build(chunks)
+  mount(res)
+  const reset = scenes.filter(s => touched.includes(s.name) && before.has(s.name) && Math.abs(before.get(s.name) - s.dur) > 1e-6 && s.len !== s.dur)
+  if (reset.length) { reset.forEach(s => { s.len = s.dur }); retime(); saveLengths() }
+  noteChange(mode === 'replace' ? 'replace' : 'paste', add)
+  const added = touched.filter(n => !before.has(n)), replaced = touched.filter(n => before.has(n))
+  const parts = []
+  if (mode === 'replace') parts.push(`Ролик заменён, сцен ${scenes.length}`)
+  else {
+    if (replaced.length) parts.push((replaced.length > 1 ? 'заменены ' : 'заменена ') + replaced.map(n => `«${n}»`).join(', '))
+    if (added.length) parts.push((added.length > 1 ? 'добавлены ' : 'добавлена ') + added.map(n => `«${n}»`).join(', '))
+    if (!touched.length) parts.push('настройки ролика обновлены')
+  }
+  say(parts.join(', ').replace(/^./, c => c.toUpperCase()))
+  const first = scenes.find(s => s.name === touched[0])
+  T = first ? first.start : 0
+  render()
+  play()
+  return true
+}
+
+dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close() })
+$('form', dlg).addEventListener('submit', e => {
+  const v = e.submitter && e.submitter.value
+  if (v === 'show') { e.preventDefault(); area.value = codeText(); msg.textContent = ''; area.focus(); area.setSelectionRange(0, 0); area.scrollTop = 0; return }
+  if (v === 'put' || v === 'replace') {
+    e.preventDefault()
+    if (apply(area.value, v)) { area.value = ''; dlg.close() }
+  }
+})
+area.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (apply(area.value, 'put')) { area.value = ''; dlg.close() } }
+  if (e.key === 'Tab') { e.preventDefault(); area.setRangeText('  ', area.selectionStart, area.selectionEnd, 'end') }
+})
+
+// ---------- Сохранение и связь с файлом ----------
+// Без связи изменения ждут кнопки «Сохранить», она становится заметной.
+// Со связью плеер держит файл ролика открытым: свои изменения пишет в него сам,
+// чужие (например, правки ИИ-агента) подхватывает сам
+const canLink = !!window.showOpenFilePicker
+let dirty = false, link = null, stored = null
+let pending = { lengths: false, paste: [], replace: false }
+let syncing = false, again = false, syncTimer = 0
+const BLOCK = /(<script type="text\/plain" id="reel-scenes">)([\s\S]*?)(<\/script>)/
+const blockOf = text => { const m = String(text).match(BLOCK); return m ? m[2] : null }
+const withCode = (text, list) => text
+  .replace(BLOCK, (_, a, b, c) => `${a}\n${codeOf(list).replace(/<\/script/gi, '<\\/script')}\n${c}`)
+  .replace(/<title>[\s\S]*?<\/title>/, () => `<title>${esc(opts.title)}</title>`)
+const fileHTML = () => withCode(SOURCE, chunks)
+const pageName = decodeURIComponent(location.pathname.split('/').pop() || '')
+
+function setDirty(v) {
+  dirty = v
+  const show = v && !link
+  $('[data-act="save"]').classList.toggle('p-strong', show)
+  $('.p-unsaved').hidden = !show
+}
+function noteChange(kind, list) {
+  if (!link) { setDirty(true); return }
+  if (kind === 'paste') pending.paste.push(...list)
+  else if (kind === 'replace') pending.replace = true
+  else pending.lengths = true
+  clearTimeout(syncTimer)
+  syncTimer = setTimeout(syncNow, 250)
+}
+function updateLinkUI() {
+  const b = $('[data-act="link"]')
+  b.hidden = !canLink || !!link
+  b.textContent = stored ? 'Связать снова' : `Связать с${NB}файлом`
+  const l = $('.p-linked')
+  l.hidden = !link
+  if (link) {
+    l.textContent = `Связано с${NB}${link.name}`
+    l.title = 'Изменения сохраняются в этот файл сами. Правки ИИ в файле появляются здесь сами'
+  }
+  $('[data-act="save"]').hidden = !!link
+  setDirty(dirty)
+}
+
+// Показать ролик из кода файла
+function adopt(block) {
+  const list = splitChunks(block)
+  try {
+    const res = build(list)
+    chunks = list
+    fileError = ''
+    mount(res)
+    return true
+  } catch (e) {
+    fileError = `Код в${NB}файле не${NB}запустился: ${e.message}\nПерешлите этот текст ИИ, он поправит`
+    render()
+    return false
+  }
+}
+
+async function linkFile(handle) {
+  try {
+    if (!handle) [handle] = await window.showOpenFilePicker({ types: [{ description: 'Ролик', accept: { 'text/html': ['.html'] } }] })
+    if (handle.requestPermission && await handle.requestPermission({ mode: 'readwrite' }) !== 'granted') {
+      say('Без разрешения менять файл связать не получится')
+      return
+    }
+    const f = await handle.getFile(), text = await f.text(), block = blockOf(text)
+    if (block == null) { say('В этом файле нет ролика. Выберите файл, который открыт в плеере'); return }
+    link = { handle, name: handle.name, text, mod: f.lastModified }
+    if (handle.name === pageName) { stored = handle; storeHandle(handle) }
+    if (dirty && confirm(`В плеере есть несохранённые изменения. Записать их в ${handle.name}?\n«Отмена» откроет ролик из файла`)) {
+      pending.replace = true
+      await syncNow()
+    } else if (block.trim() !== codeText().trim()) adopt(block)
+    dirty = false
+    updateLinkUI()
+    say(`Связано с${NB}${handle.name}. Изменения сохраняются сами`)
+  } catch (e) {
+    if (handle && handle === stored) { stored = null; updateLinkUI() }   // файл переехали или удалили, дальше выбор заново
+    if (!e || e.name !== 'AbortError') say('Не получилось связать с файлом')
+  }
+}
+
+// Записать ролик в файл. Если файл успели поменять (например, ИИ-агент), берём его версию и добавляем свои правки
+async function syncNow() {
+  if (!link) return
+  if (syncing) { again = true; return }
+  syncing = true
+  try {
+    const f = await link.handle.getFile(), text = await f.text()
+    let list = chunks
+    if (text !== link.text && !pending.replace) {
+      const block = blockOf(text)
+      if (block != null) {
+        list = splitChunks(block).concat(pending.paste)
+        if (pending.lengths) {
+          const mine = chunks.find(c => c.label === LENGTHS)
+          list = list.filter(c => c.label !== LENGTHS).concat(mine ? [mine] : [])
+        }
+        try { list = prune(list, build(list)) } catch (e) { /* ошибку в коде покажет adopt */ }
+      }
+    }
+    const out = withCode(text, list)
+    if (out !== text) {
+      const w = await link.handle.createWritable()
+      await w.write(out)
+      await w.close()
+    }
+    link.text = out
+    link.mod = (await link.handle.getFile()).lastModified
+    pending = { lengths: false, paste: [], replace: false }
+    if (list !== chunks) adopt(blockOf(out))
+  } catch (e) { lost() }
+  syncing = false
+  if (again) { again = false; syncNow() }
+}
+
+// Раз в секунду смотрим, не поменялся ли файл
+async function watch() {
+  if (!link || syncing || resizing || pending.lengths || pending.paste.length || pending.replace) return
+  try {
+    const f = await link.handle.getFile()
+    if (f.lastModified === link.mod) return
+    const text = await f.text()
+    link.mod = f.lastModified
+    if (text === link.text || syncing) return
+    link.text = text
+    const block = blockOf(text)
+    if (block != null && block.trim() !== codeText().trim() && adopt(block)) say(`Обновлено из${NB}${link.name}`)
+  } catch (e) { lost() }
+}
+setInterval(watch, 1000)
+function lost() {
+  link = null
+  updateLinkUI()
+  say('Связь с файлом потеряна. Нажмите «Связать снова»')
+}
+
+// Связь помнится для этой страницы: при следующем открытии хватит одного щелчка, а если браузер помнит разрешение, ни одного
+function idb(mode, fn) {
+  return new Promise((ok, fail) => {
+    const r = indexedDB.open('reel-player', 1)
+    r.onupgradeneeded = () => r.result.createObjectStore('links')
+    r.onerror = () => fail(r.error)
+    r.onsuccess = () => {
+      const tx = r.result.transaction('links', mode), q = fn(tx.objectStore('links'))
+      tx.oncomplete = () => ok(q && q.result)
+      tx.onerror = () => fail(tx.error)
+    }
+  })
+}
+function storeHandle(h) { try { idb('readwrite', st => st.put(h, location.pathname)).catch(() => {}) } catch (e) { /* без памяти тоже работает */ } }
+async function restoreLink() {
+  if (!canLink) return
+  try {
+    stored = (await idb('readonly', st => st.get(location.pathname))) || null
+    if (stored && stored.queryPermission && await stored.queryPermission({ mode: 'readwrite' }) === 'granted') await linkFile(stored)
+  } catch (e) { stored = null }
+  updateLinkUI()
+}
+
+async function save() {
+  const html = fileHTML()
+  const name = (opts.title || 'Ролик').replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.html'
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Ролик', accept: { 'text/html': ['.html'] } }] })
+      const w = await handle.createWritable()
+      await w.write(html)
+      await w.close()
+      // Дальше плеер связан с этим файлом и сохраняет в него сам
+      link = { handle, name: handle.name, text: html, mod: (await handle.getFile()).lastModified }
+      dirty = false
+      updateLinkUI()
+      say(`Сохранено в${NB}${handle.name}. Дальше изменения сохраняются сами`)
+      return
+    } catch (e) {
+      if (e && e.name === 'AbortError') return
+    }
+  }
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+  a.download = name
+  document.body.append(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+  setDirty(false)
+  say(`Файл ${name} в${NB}папке загрузок`)
+}
+window.addEventListener('beforeunload', e => {
+  if (dirty || (link && (syncing || pending.lengths || pending.paste.length || pending.replace))) { e.preventDefault(); e.returnValue = '' }
+})
+
+// ---------- Запрос для ИИ ----------
+// Сцена и момент под курсором плюс что поправить. Для обычного чата к запросу добавляется код сцены
+const ask = $('.p-ask'), askWhat = $('.p-what', ask), askCode = $('.p-withcode', ask), askPre = $('pre', ask), askMsg = $('.p-msg', ask)
+let askCodeChoice = null
+function askText() {
+  const s = scenes[indexAt(T)]
+  if (!s) return ''
+  const local = Math.min(s.len, Math.max(0, T - s.start)), t = local * s.dur / s.len
+  const stretched = Math.abs(s.len - s.dur) > 1e-6
+  const lines = [
+    `Поправь сцену «${s.name}»${link ? ` в файле ${link.name}` : ''} по инструкции «Ролик из HTML».`,
+    `Момент: ${fmt(local)} с от начала сцены${stretched ? `, в коде сцены это t = ${fmt(t)} (в плеере сцена растянута до ${short(s.len)} с)` : ''}.`,
+    `Что поправить: ${askWhat.value.trim() || '...'}`,
+    link ? 'Поправь сцену прямо в файле, остальные сцены не меняй.' : 'Пришли только эту сцену целиком, с тем же name. Остальные сцены не меняй.',
+  ]
+  if (askCode.checked) lines.push('', 'Текущий код, в нём эта сцена:', '```js', (s.src && s.src.code) || '', '```')
+  return lines.join('\n')
+}
+function openAsk() {
+  if (!scenes.length) return
+  pause()
+  const s = scenes[indexAt(T)]
+  $('.p-where', ask).textContent = `Сцена «${s.name}», ${fmt(Math.min(s.len, T - s.start))} с из${NB}${fmt(s.len)}`
+  askCode.checked = askCodeChoice == null ? !link : askCodeChoice
+  askMsg.textContent = ''
+  askPre.textContent = askText()
+  ask.showModal()
+  askWhat.focus()
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true } catch (e) {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    document.body.append(ta)
+    ta.select()
+    let ok = false
+    try { ok = document.execCommand('copy') } catch (e2) { ok = false }
+    ta.remove()
+    return ok
+  }
+}
+askWhat.addEventListener('input', () => { askMsg.textContent = ''; askPre.textContent = askText() })
+askCode.addEventListener('change', () => { askCodeChoice = askCode.checked; askPre.textContent = askText() })
+ask.addEventListener('click', e => { if (e.target === ask) ask.close() })
+$('form', ask).addEventListener('submit', async e => {
+  if (!e.submitter || e.submitter.value !== 'copy') return
+  e.preventDefault()
+  if (!askWhat.value.trim()) { askMsg.textContent = 'Напишите, что поправить'; askWhat.focus(); return }
+  if (await copyText(askText())) {
+    ask.close()
+    askWhat.value = ''
+    say('Запрос скопирован. Вставьте его в чат или Claude Code')
+  } else {
+    askMsg.textContent = 'Не получилось скопировать. Выделите текст запроса и скопируйте вручную'
+    getSelection().selectAllChildren(askPre)
+  }
+})
+
+// ---------- Запуск ----------
+updatePlay()
+setSpeed(1)
+setLoop(false)
+chunks = splitChunks($('#reel-scenes').textContent)
+try { mount(build(chunks)) } catch (e) {
+  mount({ opts: { title: 'Ролик', fps: 30, width: 1920, height: 1080, css: [] }, scenes: [], per: [] })
+  errBox.textContent = 'Код сцен не запустился: ' + e.message
+  errBox.classList.add('p-on')
+}
+const hashT = (location.hash.match(/t=([\d.]+)/) || [])[1]
+if (hashT) seek(+hashT)
+updateLinkUI()
+restoreLink()
+if (document.fonts) {
+  document.fonts.ready.then(render)
+  document.fonts.addEventListener('loadingdone', render)
+}
+// Для проверки и для агентов: управление плеером из консоли
+window.reelPlayer = {
+  seek, play, pause, apply, fileHTML, askText,
+  link: linkFile,
+  get linked() { return link ? link.name : null },
+  setLength(name, len) { const s = scenes.find(x => x.name === name); if (s) { s.len = len; retime(); saveLengths(); render() } },
+  get time() { return T },
+  get scenes() { return scenes.map(s => ({ name: s.name, start: s.start, dur: s.dur, len: s.len, error: s.error })) },
+}
+})()
+</script>
+</body>
+</html>
