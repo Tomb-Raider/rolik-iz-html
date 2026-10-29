@@ -1,4 +1,2 @@
-# Настройки GitHub Pages: показать картинку из папки .github
+# Название сайта на GitHub Pages
 title: Ролик из HTML
-include:
-  - .github
