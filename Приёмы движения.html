@@ -315,37 +315,8 @@ scene(fly('Число', '<b>24</b> кадра в секунду', { size: 140, t
 </div>
 
 <h2>Приёмы</h2>
-<p class="sub">Отдельные движения и переходы с признанными названиями. Под каждым источник. Их можно ставить в ролик любого стиля, если под приёмом не сказано иное</p>
+<p class="sub">Отдельные движения, переходы и движения камеры с признанными названиями. Под каждым источник. Их можно ставить в ролик любого стиля, если под приёмом не сказано иное</p>
 <div class="grid">
-
-  <div class="ex">
-    <h3>Счётчик</h3>
-    <p>Число набегает от нуля с торможением в конце</p>
-    <p class="mute">Словами для ИИ «число набегает от 0 до 12 480 за 1,4 с, в конце торможение, подпись появляется склейкой»</p>
-    <div class="ex-prompt">Добавь в ролик сцену по приёму «Счётчик» из пакета «Ролик из HTML». Ниже готовый код. Поменяй текст, числа и длительность под мой ролик, механику не трогай</div>
-    <p class="src">По-английски count-up. В After Effects для счётчиков есть эффект Numbers (<a href="https://helpx.adobe.com/after-effects/desktop/add-text/text-effects/text-effects.html">Adobe</a>). Кривая easeOutCubic (<a href="https://easings.net/">easings.net</a>)</p>
-    <button class="btn" data-copy>Скопировать для ИИ</button>
-    <script type="text/plain">
-// Приём «Счётчик». Число набегает от нуля с торможением в конце
-scene({
-  name: 'Счётчик',
-  dur: 2.6,
-  note: 'Число набегает от 0 до 12 480 за 1,4 с, подпись встаёт склейкой',
-  html: `<div class="c"><div class="n">0</div><div class="cap">просмотров за неделю</div></div>`,
-  css: `
-    .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-    .n { font-weight: 700; font-size: 300px; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
-    .cap { font-size: 64px; font-weight: 500; opacity: 0.6; }
-  `,
-  draw({ t, $ }) {
-    const to = 12480
-    const k = R.ease.outCubic(R.prog(t, 0.1, 1.4))                   // от нуля до числа за 1,4 с
-    $('.n').textContent = Math.round(to * k).toLocaleString('ru-RU')  // пробел между тысячами
-    $('.cap').style.visibility = t >= 0.9 ? 'visible' : 'hidden'     // подпись склейкой, без проявления
-  }
-})
-</script>
-  </div>
 
   <div class="ex">
     <h3>Печать по букве</h3>
@@ -378,63 +349,175 @@ scene({
   </div>
 
   <div class="ex">
-    <h3>Бегущая строка</h3>
-    <p>Слова едут справа налево с постоянной скоростью без конца</p>
-    <p class="mute">Словами для ИИ «строка из слов едет справа налево 300 px в секунду, каждое второе слово цвета акцента»</p>
-    <div class="ex-prompt">Добавь в ролик сцену по приёму «Бегущая строка» из пакета «Ролик из HTML». Ниже готовый код. Поменяй слова и скорость под мой ролик, механику не трогай</div>
-    <p class="src">По-английски news ticker или crawl, бегущая строка телеканалов (<a href="https://en.wikipedia.org/wiki/News_ticker">Википедия</a>)</p>
+    <h3>Дешифровка</h3>
+    <p>Шум из знаков появляется в случайном порядке, по строке идёт подсветка, за ней встают настоящие буквы</p>
+    <p class="mute">Словами для ИИ «шум из знаков появляется за 0,9 с, подсветка цвета акцента идёт по строке 140 мс на букву, за ней буквы встают на место»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Дешифровка» из пакета «Ролик из HTML». Ниже готовый код. Поменяй текст и длительность под мой ролик, механику не трогай</div>
+    <p class="src">По-английски scramble text. Так работает ScrambleTextPlugin, он заменяет текст случайными знаками и постепенно открывает настоящий (<a href="https://gsap.com/docs/v3/Plugins/ScrambleTextPlugin/">GSAP</a>)</p>
     <button class="btn" data-copy>Скопировать для ИИ</button>
     <script type="text/plain">
-// Приём «Бегущая строка». Слова едут справа налево с постоянной скоростью без конца
-const MARQUEE_WORDS = ['Плеер', 'Сцены', 'Таймлайн', 'Запись', 'Музыка', 'Правки']
+// Приём «Дешифровка». Шум из знаков появляется в случайном порядке, потом по строке идёт подсветка,
+// и за ней буквы встают на место
+const SCRAMBLE_TEXT = 'Ролик из HTML'
+const SCRAMBLE_CHARS = 'абвгдезиклнопрстухцчэя0123456789#%&*+<>/'   // знаки не шире настоящих букв
 
 scene({
-  name: 'Бегущая строка',
-  dur: 4,
-  note: 'Строка из слов едет справа налево 300 px в секунду, каждое второе слово цвета акцента',
-  // Список слов повторён дважды, поэтому строка не кончается
-  html: `<div class="row"><div class="track">${MARQUEE_WORDS.concat(MARQUEE_WORDS).map(w => `<span>${w}</span>`).join('')}</div></div>`,
+  name: 'Дешифровка',
+  dur: 4.4,
+  note: 'Шум появляется за 0,9 с, по строке идёт подсветка цвета акцента, 140 мс на букву, за ней буквы встают на место',
+  html: `<div class="c">${[...SCRAMBLE_TEXT].map(ch => `<span>${ch === ' ' ? '&nbsp;' : ch}</span>`).join('')}</div>`,
   css: `
-    .row { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); overflow: hidden; }
-    .track { display: flex; width: max-content; font-weight: 700; font-size: 130px; letter-spacing: -0.02em; white-space: nowrap; }
-    .track span { padding-right: 0.5em; }
-    .track span:nth-child(even) { color: var(--accent); }
+    .c { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+         font-weight: 700; font-size: 170px; letter-spacing: -0.01em; white-space: nowrap; }
+    .c span { position: relative; display: inline-block; text-align: center; }
+    .c span.noise { color: var(--accent); opacity: 0.85; }
+    .c span.scan { color: var(--bg); }
+    .c span.scan::before { content: ""; position: absolute; left: -0.03em; right: -0.03em; top: 0.1em; bottom: 0.06em;
+                           background: var(--accent); z-index: -1; }
   `,
-  draw({ t, $ }) {
-    const track = $('.track')
-    const half = track.scrollWidth / 2                       // длина одного списка слов
-    track.style.transform = `translateX(${-((t * 300) % half)}px)`
+  draw({ t, $$ }) {
+    const step = Math.floor(t * 15)                                 // знаки меняются 15 раз в секунду
+    $$('.c span').forEach((s, i) => {
+      const ch = SCRAMBLE_TEXT[i]
+      s.style.width = ''
+      s.textContent = ch === ' ' ? ' ' : ch
+      s.style.width = s.offsetWidth + 'px'                          // ширина как у настоящей буквы, строка не прыгает
+      const appear = 0.1 + R.rand(i + 7) * 0.8                       // шум встаёт в случайном порядке за 0,9 с
+      const solve = 1.4 + i * 0.14                                   // подсветка идёт слева направо, 140 мс на букву
+      const noise = ch !== ' ' && t < solve
+      s.classList.toggle('noise', noise && t < solve - 0.14)
+      s.classList.toggle('scan', noise && t >= solve - 0.14)        // за 140 мс до своей буквы знак под подсветкой
+      if (!noise) return
+      s.textContent = t < appear ? ' ' : SCRAMBLE_CHARS[Math.floor(R.rand(i * 131 + step) * SCRAMBLE_CHARS.length)]
+    })
   }
 })
 </script>
   </div>
 
   <div class="ex">
-    <h3>По одному</h3>
-    <p>Элементы встают по очереди, каждый следующий через 100 мс</p>
-    <p class="mute">Словами для ИИ «шесть плиток встают по одной, каждая за 300 мс, шаг 100 мс»</p>
-    <div class="ex-prompt">Добавь в ролик сцену по приёму «По одному» из пакета «Ролик из HTML». Ниже готовый код. Поменяй элементы и цвета под мой ролик, механику не трогай</div>
-    <p class="src">По-английски stagger (<a href="https://m2.material.io/design/motion/customization.html">Material Design</a>, <a href="https://gsap.com/resources/getting-started/Staggers">GSAP</a>). По исследованию Heer и Robertson (2007) поэтапную анимацию зрители понимают лучше (<a href="https://idl.uw.edu/papers/animated-transitions/">IEEE InfoVis</a>). 300 мс это токен medium2 Material 3 (<a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">M3</a>)</p>
+    <h3>Строки навстречу</h3>
+    <p>Полоса из четырёх бегущих строк под наклоном, соседние едут навстречу друг другу</p>
+    <p class="mute">Словами для ИИ «четыре бегущие строки под наклоном 8°, соседние едут в разные стороны, одна строка на полосе цвета акцента»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Строки навстречу» из пакета «Ролик из HTML». Ниже готовый код. Поменяй слова и скорость под мой ролик, механику не трогай</div>
+    <p class="src">Бегущая строка, по-английски news ticker или crawl (<a href="https://en.wikipedia.org/wiki/News_ticker">Википедия</a>)</p>
     <button class="btn" data-copy>Скопировать для ИИ</button>
     <script type="text/plain">
-// Приём «По одному». Элементы встают по очереди с шагом 100 мс
-const TILE_COLORS = ['var(--c1, #3D7CFF)', 'var(--c2, #22C1A6)', 'var(--c3, #FFC53D)', 'var(--c4, #FF6B4A)', 'var(--c5, #B26BFF)', 'var(--c1, #3D7CFF)']
+// Приём «Строки навстречу». Полоса из нескольких бегущих строк под наклоном, соседние едут в разные стороны
+const ROWS_WORDS = ['Плеер', 'Сцены', 'Таймлайн', 'Запись', 'Музыка', 'Правки']
 
 scene({
-  name: 'По одному',
-  dur: 2.4,
-  note: 'Шесть плиток цветов бренда встают по одной, каждая за 300 мс',
-  html: `<div class="grid">${TILE_COLORS.map(c => `<i style="background: ${c}"></i>`).join('')}</div>`,
+  name: 'Строки навстречу',
+  dur: 4,
+  note: 'Четыре бегущие строки под наклоном 8°, соседние едут навстречу, одна строка на полосе цвета акцента',
+  html: `<div class="band">${[0, 1, 2, 3].map(r => `<div class="row r${r}"><div class="track">${
+    ROWS_WORDS.concat(ROWS_WORDS).map((w, i) => `<span>${ROWS_WORDS[(i + r * 2) % ROWS_WORDS.length]}</span>`).join('')}</div></div>`).join('')}</div>`,
   css: `
-    .grid { position: absolute; left: 50%; top: 50%; display: grid; grid-template-columns: repeat(3, 260px); gap: 40px;
-            transform: translate(-50%, -50%); }
-    .grid i { display: block; height: 260px; border-radius: 40px; }
+    .band { position: absolute; left: -200px; right: -200px; top: 50%; transform: translateY(-50%) rotate(-8deg); }
+    .row { overflow: hidden; }
+    .track { display: flex; width: max-content; font-weight: 800; font-size: 150px; line-height: 1.12; letter-spacing: -0.02em; white-space: nowrap; }
+    .track span { padding-right: 0.45em; }
+    .r1 { background: var(--accent); }
+    .r3 .track { opacity: 0.35; }
   `,
   draw({ t, $$ }) {
-    $$('.grid i').forEach((tile, i) => {
-      const k = R.ease.outCubic(R.prog(t, 0.15 + i * 0.1, 0.3))   // плитка встаёт за 300 мс, следующая через 100 мс
-      tile.style.transform = `scale(${k})`
+    $$('.track').forEach((track, r) => {
+      const half = track.scrollWidth / 2
+      const speed = 220 + r * 40                                 // у каждой строки своя скорость
+      const x = (t * speed) % half
+      track.style.transform = `translateX(${r % 2 ? x - half : -x}px)`   // чётные влево, нечётные вправо
     })
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Два кольца</h3>
+    <p>Две надписи по окружностям вращаются навстречу, внутренняя быстрее, в центре кнопка пуска</p>
+    <p class="mute">Словами для ИИ «внешнее кольцо текста вращается 30° в секунду против часовой стрелки, внутреннее цвета акцента 60° по часовой»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Два кольца» из пакета «Ролик из HTML». Ниже готовый код. Поменяй надписи и скорость вращения под мой ролик, механику не трогай</div>
+    <p class="src">Текст по пути. В SVG это элемент textPath (<a href="https://www.w3.org/TR/SVG2/text.html#TextLayoutPath">W3C</a>), в After Effects Path Options у текстового слоя (<a href="https://helpx.adobe.com/after-effects/desktop/animating-text/text-animation/animating-text.html">Adobe</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Два кольца». Две надписи по окружностям вращаются навстречу, внутреннее кольцо цвета акцента и быстрее
+scene({
+  name: 'Два кольца',
+  dur: 4,
+  note: 'Внешнее кольцо 30° в секунду против часовой, внутреннее 60° по часовой, в центре кнопка пуска',
+  html: `
+    <svg class="r outer" viewBox="0 0 1000 1000">
+      <path id="ring2-outer" d="M500 500 m-440 0 a440 440 0 1 1 880 0 a440 440 0 1 1 -880 0" fill="none"/>
+      <text><textPath href="#ring2-outer" textLength="2750" lengthAdjust="spacing">ролик из html · ролик из html · ролик из html · ролик из html · ролик из html ·</textPath></text>
+    </svg>
+    <svg class="r inner" viewBox="0 0 1000 1000">
+      <path id="ring2-inner" d="M500 500 m-300 0 a300 300 0 1 1 600 0 a300 300 0 1 1 -600 0" fill="none"/>
+      <text><textPath href="#ring2-inner" textLength="1870" lengthAdjust="spacing">сцены из кода · сцены из кода · сцены из кода · сцены из кода ·</textPath></text>
+    </svg>
+    <div class="core"><i></i></div>`,
+  css: `
+    .r { position: absolute; left: 50%; top: 50%; width: 960px; height: 960px; margin: -480px 0 0 -480px; overflow: visible; }
+    .r text { font-family: var(--font); font-weight: 700; }
+    .outer text { fill: var(--fg); font-size: 64px; }
+    .inner text { fill: var(--accent); font-size: 52px; }
+    .core { position: absolute; left: 50%; top: 50%; width: 300px; height: 300px; margin: -150px 0 0 -150px; border-radius: 50%;
+            background: var(--fg); display: flex; align-items: center; justify-content: center; }
+    .core i { display: block; width: 0; height: 0; margin-left: 22px; border-style: solid; border-width: 56px 0 56px 96px;
+              border-color: transparent transparent transparent var(--bg); }
+  `,
+  draw({ t, $ }) {
+    $('.outer').style.transform = `rotate(${-30 * t}deg)`
+    $('.inner').style.transform = `rotate(${60 * t}deg)`
+    const k = R.ease.outCubic(R.prog(t, 0.1, 0.5))
+    $('.core').style.transform = `scale(${k * (1 + 0.04 * Math.sin(t * Math.PI * 2))})`   // кнопка дышит раз в секунду
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Кольцо прогресса</h3>
+    <p>Число набегает, вокруг заполняется кольцо, на конце дуги точка</p>
+    <p class="mute">Словами для ИИ «кольцо заполняется до 78 % за 1,6 с с торможением в конце, число в центре набегает вместе с ним»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Кольцо прогресса» из пакета «Ролик из HTML». Ниже готовый код. Поменяй число, подпись и цвет кольца под мой ролик, механику не трогай</div>
+    <p class="src">Счётчик, по-английски count-up, в After Effects для него есть эффект Numbers (<a href="https://helpx.adobe.com/after-effects/desktop/add-text/text-effects/text-effects.html">Adobe</a>). Кольцо рисуется через stroke-dashoffset, как в DrawSVGPlugin (<a href="https://gsap.com/docs/v3/Plugins/DrawSVGPlugin/">GSAP</a>). Кривая easeOutCubic (<a href="https://easings.net/">easings.net</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Кольцо прогресса». Число набегает, вокруг него заполняется кольцо, на конце дуги точка
+scene({
+  name: 'Кольцо прогресса',
+  dur: 3,
+  note: 'Кольцо заполняется до 78 % за 1,6 с, число в центре набегает вместе с ним',
+  html: `
+    <svg class="ring" viewBox="0 0 800 800">
+      <circle class="track" cx="400" cy="400" r="330"/>
+      <circle class="arc" cx="400" cy="400" r="330"/>
+      <circle class="knob" r="30"/>
+    </svg>
+    <div class="num"><b>0</b><span>%</span><i>выполнено</i></div>`,
+  css: `
+    .ring { position: absolute; left: 50%; top: 50%; width: 800px; height: 800px; margin: -400px 0 0 -400px; transform: rotate(-90deg); }
+    .track, .arc { fill: none; stroke-width: 48; }
+    .track { stroke: var(--fg); opacity: 0.12; }
+    .arc { stroke: var(--accent); stroke-linecap: round; }
+    .knob { fill: var(--fg); }
+    .num { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; align-items: baseline; }
+    .num b { font-size: 240px; font-weight: 700; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+    .num span { font-size: 110px; font-weight: 700; margin-left: 8px; }
+    .num i { flex-basis: 100%; text-align: center; font-style: normal; font-size: 52px; opacity: 0.6; }
+  `,
+  draw({ t, $ }) {
+    const value = 78
+    const k = R.ease.outCubic(R.prog(t, 0.2, 1.6)) * value / 100   // доля кольца
+    const len = 2 * Math.PI * 330
+    const arc = $('.arc')
+    arc.style.strokeDasharray = len
+    arc.style.strokeDashoffset = len * (1 - k)
+    arc.style.visibility = k > 0.001 ? 'visible' : 'hidden'
+    const a = k * 2 * Math.PI                                       // точка на конце дуги
+    $('.knob').setAttribute('cx', 400 + 330 * Math.cos(a))
+    $('.knob').setAttribute('cy', 400 + 330 * Math.sin(a))
+    $('.num b').textContent = Math.round(k * 100)
   }
 })
 </script>
@@ -445,7 +528,7 @@ scene({
     <p>Столбики растут снизу по очереди, над каждым набегает число. Один столбик выделен</p>
     <p class="mute">Словами для ИИ «столбики растут по очереди за 700 мс с шагом 120 мс, самый высокий цвета акцента»</p>
     <div class="ex-prompt">Добавь в ролик сцену по приёму «Столбики» из пакета «Ролик из HTML». Ниже готовый код. Поменяй подписи и значения в BARS_DATA под мой ролик, механику не трогай</div>
-    <p class="src">Рост по очереди это тот же stagger. Анимированные переходы в графиках исследовали Heer и Robertson (<a href="https://idl.uw.edu/papers/animated-transitions/">IEEE InfoVis</a>). 700 мс это токен slow-02 IBM Carbon (<a href="https://carbondesignsystem.com/elements/motion/overview/">Carbon</a>)</p>
+    <p class="src">Рост по очереди это stagger (<a href="https://gsap.com/docs/v3/Staggers/">GSAP</a>). Анимированные переходы в графиках исследовали Heer и Robertson (<a href="https://idl.uw.edu/papers/animated-transitions/">IEEE InfoVis</a>). 700 мс это токен slow-02 IBM Carbon (<a href="https://carbondesignsystem.com/elements/motion/overview/">Carbon</a>)</p>
     <button class="btn" data-copy>Скопировать для ИИ</button>
     <script type="text/plain">
 // Приём «Столбики». Столбики растут снизу по очереди, над каждым набегает число. Один столбик выделен
@@ -518,11 +601,47 @@ scene({
   </div>
 
   <div class="ex">
+    <h3>Волна</h3>
+    <p>Сетка мелких точек, из центра медленно расходятся узкие волны, точки на гребне вырастают</p>
+    <p class="mute">Словами для ИИ «сетка 32 на 18 мелких точек, из центра расходятся две узкие волны, 100 мс задержки на клетку, на гребне точки в 4 раза больше»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Волна» из пакета «Ролик из HTML». Ниже готовый код. Поменяй число точек и скорость волны под мой ролик, механику не трогай</div>
+    <p class="src">Задержка по сетке от центра, stagger с grid и from: "center" (<a href="https://gsap.com/docs/v3/Staggers/">GSAP</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Волна от центра». Сетка мелких точек с большими промежутками.
+// Из центра медленно расходятся узкие волны, точки на гребне вырастают, каждая ждёт по своему расстоянию до центра
+const WAVE_COLS = 32, WAVE_ROWS = 18
+
+scene({
+  name: 'Волна',
+  dur: 4.4,
+  note: 'Сетка 32 на 18 мелких точек, из центра медленно расходятся две узкие волны, на гребне точки вырастают в 4 раза',
+  html: `<div class="g">${'<i></i>'.repeat(WAVE_COLS * WAVE_ROWS)}</div>`,
+  css: `
+    .g { position: absolute; left: 50%; top: 50%; display: grid; grid-template-columns: repeat(${WAVE_COLS}, 52px);
+         grid-auto-rows: 52px; place-items: center; transform: translate(-50%, -50%); }
+    .g i { display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--fg); }
+  `,
+  draw({ t, $$ }) {
+    const cx = (WAVE_COLS - 1) / 2, cy = (WAVE_ROWS - 1) / 2
+    const pulse = x => R.keys(x, [[0, 0], [0.15, 1, R.ease.out], [0.45, 0, R.ease.inOut]])  // подъём 150 мс, спад 300 мс, волна узкая
+    $$('.g i').forEach((dot, n) => {
+      const d = Math.hypot(n % WAVE_COLS - cx, Math.floor(n / WAVE_COLS) - cy)   // расстояние от центра в клетках
+      const lt = t - 0.2 - d * 0.1                                              // 100 мс задержки на клетку, волна идёт медленно
+      const k = Math.max(pulse(lt), pulse(lt - 2))                               // две волны через 2 с
+      dot.style.transform = `scale(${1 + 3 * k})`                               // на гребне точка в 4 раза больше
+    })
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
     <h3>Шторка</h3>
     <p>Плоскость цвета проходит через кадр и меняет то, что под ней</p>
     <p class="mute">Словами для ИИ «шторка цвета акцента проходит слева направо за 900 мс, текст меняется, когда она закрыла весь кадр»</p>
     <p class="mute">Не для стиля Apple, там только жёсткие склейки</p>
-    <div class="ex-prompt">Добавь в ролик переход по приёму «Шторка» из пакета «Ролик из HTML». Ниже готовый код. Поменяй то, что до и после шторки, под мой ролик, механику не трогай</div>
+    <div class="ex-prompt">Добавь в ролик переход по приёму «Шторка» из пакета «Ролик из HTML». Ниже готовый код. Поменяй то, что до и после шторки под мой ролик, механику не трогай</div>
     <p class="src">По-английски wipe, классический монтажный переход (<a href="https://www.studiobinder.com/blog/types-of-editing-transitions-in-film/">StudioBinder</a>). 900 мс это токен extra-long3 Material 3 (<a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">M3</a>)</p>
     <button class="btn" data-copy>Скопировать для ИИ</button>
     <script type="text/plain">
@@ -549,60 +668,117 @@ scene({
   </div>
 
   <div class="ex">
-    <h3>Круг</h3>
-    <p>Новое содержимое открывается растущим кругом из точки</p>
-    <p class="mute">Словами для ИИ «из точки справа внизу за 800 мс растёт круг цвета акцента и открывает новый текст»</p>
+    <h3>Шторка из кругов</h3>
+    <p>Круги растут по сетке от центра, закрывают кадр, под ними уже новая сцена</p>
+    <p class="mute">Словами для ИИ «круги цвета акцента растут от центра по сетке 12 на 7, каждый 800 мс, 120 мс задержки на клетку, после них новая сцена»</p>
     <p class="mute">Не для стиля Apple, там только жёсткие склейки</p>
-    <div class="ex-prompt">Добавь в ролик переход по приёму «Круг» из пакета «Ролик из HTML». Ниже готовый код. Поменяй то, что до и после круга, под мой ролик, механику не трогай</div>
-    <p class="src">По-английски iris, растущая или сжимающаяся круговая шторка (<a href="https://www.studiobinder.com/blog/what-is-a-wipe-transition-in-film/">StudioBinder</a>, <a href="https://www.nyfa.edu/student-resources/a-beginners-guide-to-film-editing-vocabulary/">NYFA</a>). 800 мс это токен extra-long2 Material 3 (<a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">M3</a>)</p>
+    <div class="ex-prompt">Добавь в ролик переход по приёму «Шторка из кругов» из пакета «Ролик из HTML». Ниже готовый код. Поменяй то, что до и после шторки, и цвет кругов под мой ролик, механику не трогай</div>
+    <p class="src">Шторка особой формы, wipe with a specific shape (<a href="https://www.studiobinder.com/blog/what-is-a-wipe-transition-in-film/">StudioBinder</a>), с задержкой по сетке от центра (<a href="https://gsap.com/docs/v3/Staggers/">GSAP</a>)</p>
     <button class="btn" data-copy>Скопировать для ИИ</button>
     <script type="text/plain">
-// Приём «Круг». Новое содержимое открывается растущим кругом из точки
+// Приём «Шторка из кругов». Круги цвета акцента растут по сетке от центра, закрывают кадр, под ними уже новая сцена
+const DOTS_COLS = 12, DOTS_ROWS = 7, DOTS_CELL = 160
+
 scene({
-  name: 'Круг',
-  dur: 2.4,
-  note: 'Из точки справа внизу растёт круг цвета акцента и открывает «Стало»',
-  html: `<div class="t">Было</div><div class="nx"><div class="t">Стало</div></div>`,
+  name: 'Шторка из кругов',
+  dur: 3.6,
+  note: 'Круги растут от центра с задержкой 120 мс на клетку, закрывают «Было», после них «Стало» на цвете акцента',
+  html: `<div class="t a">Было</div><div class="g">${'<i></i>'.repeat(DOTS_COLS * DOTS_ROWS)}</div><div class="t b">Стало</div>`,
   css: `
     .t { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
          font-weight: 700; font-size: 200px; letter-spacing: -0.03em; }
-    .nx { position: absolute; inset: 0; background: var(--accent); }
+    .b { background: var(--accent); }
+    .g { position: absolute; left: 0; top: -20px; display: grid; grid-template-columns: repeat(${DOTS_COLS}, ${DOTS_CELL}px);
+         grid-auto-rows: ${DOTS_CELL}px; place-items: center; }
+    .g i { display: block; width: ${DOTS_CELL * 1.5}px; height: ${DOTS_CELL * 1.5}px; flex: none; border-radius: 50%; background: var(--accent); }
   `,
-  draw({ t, $ }) {
-    const k = R.ease.inOutCubic(R.prog(t, 0.6, 0.8))          // круг растёт 800 мс
-    $('.nx').style.clipPath = `circle(${k * 1700}px at 72% 64%)`
+  draw({ t, $, $$ }) {
+    const cx = (DOTS_COLS - 1) / 2, cy = (DOTS_ROWS - 1) / 2
+    $$('.g i').forEach((dot, n) => {
+      const d = Math.hypot(n % DOTS_COLS - cx, Math.floor(n / DOTS_COLS) - cy)
+      const k = R.ease.outCubic(R.prog(t, 0.6 + d * 0.12, 0.8))   // круг растёт 800 мс, 120 мс задержки на клетку
+      dot.style.transform = `scale(${k})`
+    })
+    const covered = t >= 2.2                                        // все круги выросли, кадр закрыт
+    $('.g').style.display = covered ? 'none' : ''
+    $('.a').style.display = covered ? 'none' : ''
+    $('.b').style.display = covered ? '' : 'none'
   }
 })
 </script>
   </div>
 
   <div class="ex">
-    <h3>Наезд</h3>
-    <p>Камера медленно наезжает на неподвижную картинку и сдвигается к нужной части</p>
-    <p class="mute">Словами для ИИ «за всю сцену камера плавно наезжает на 25 % и сдвигается к солнцу, разгон и торможение»</p>
-    <div class="ex-prompt">Добавь в ролик сцену по приёму «Наезд» (эффект Кена Бёрнса) из пакета «Ролик из HTML». Ниже готовый код. Поменяй картинку, масштаб и точку, к которой едет камера, под мой ролик, механику не трогай</div>
-    <p class="src">По-английски Ken Burns effect, наезд и панорама между начальной и конечной рамкой (<a href="https://support.apple.com/en-ca/guide/final-cut-pro/verb8e5de9c/mac">Final Cut Pro</a>, <a href="https://en.wikipedia.org/wiki/Ken_Burns_effect">Википедия</a>)</p>
+    <h3>Монтаж по форме</h3>
+    <p>Точка вырастает в круг, склейка, круг остаётся на месте и того же размера, но вокруг уже другая картинка</p>
+    <p class="mute">Словами для ИИ «точка после слова за 800 мс вырастает в круг по центру, склейка, круг на том же месте становится кнопкой пуска на белом фоне»</p>
+    <div class="ex-prompt">Добавь в ролик переход по приёму «Монтаж по форме» из пакета «Ролик из HTML». Ниже готовый код. Поменяй слово, форму и вторую картинку под мой ролик, механику не трогай</div>
+    <p class="src">По-английски match cut, точнее graphic match, переход через общую форму (<a href="https://www.studiobinder.com/blog/match-cuts-creative-transitions-examples/">StudioBinder</a>)</p>
     <button class="btn" data-copy>Скопировать для ИИ</button>
     <script type="text/plain">
-// Приём «Наезд», эффект Кена Бёрнса. Камера медленно наезжает на неподвижную картинку и сдвигается к нужной части
+// Приём «Монтаж по форме». Круг из первой сцены после склейки остаётся на том же месте и того же размера,
+// но становится частью другой картинки
 scene({
-  name: 'Наезд',
-  dur: 4,
-  note: 'Картинка из простых фигур, камера за всю сцену наезжает на 25 % и сдвигается к солнцу',
-  html: `<div class="pic"><i class="sun"></i><i class="hill h1"></i><i class="hill h2"></i></div>`,
+  name: 'Монтаж по форме',
+  dur: 3,
+  note: 'Точка после слова «Идея» вырастает в круг по центру, склейка, круг остаётся и становится кнопкой пуска на белом фоне',
+  html: `
+    <div class="a"><span class="w">Идея</span><i class="dot"></i></div>
+    <div class="b"><i class="dot"><em></em></i><span class="cap">Готовый ролик</span></div>`,
   css: `
-    .pic { position: absolute; inset: 0; transform-origin: 0 0; }
-    .sun { position: absolute; left: 1240px; top: 200px; width: 260px; height: 260px; display: block; border-radius: 50%; background: var(--c3, #FFC53D); }
-    .hill { position: absolute; display: block; border-radius: 50%; }
-    .h1 { left: -300px; top: 640px; width: 1500px; height: 900px; background: var(--c2, #22C1A6); }
-    .h2 { left: 700px; top: 720px; width: 1700px; height: 900px; background: var(--accent); }
+    .a, .b { position: absolute; inset: 0; }
+    .b { background: var(--fg); color: var(--bg); }
+    .w { position: absolute; right: 1000px; top: 50%; transform: translateY(-58%); font-weight: 700; font-size: 220px; letter-spacing: -0.03em; }
+    .dot { position: absolute; left: 960px; top: 540px; width: 420px; height: 420px; margin: -210px 0 0 -210px; border-radius: 50%;
+           display: block; background: var(--accent); }
+    .b .dot { display: flex; align-items: center; justify-content: center; }
+    .b em { display: block; width: 0; height: 0; margin-left: 30px; border-style: solid; border-width: 80px 0 80px 136px;
+            border-color: transparent transparent transparent var(--fg); }
+    .cap { position: absolute; left: 0; right: 0; top: 800px; text-align: center; font-size: 72px; font-weight: 600; }
   `,
-  draw({ t, dur, $ }) {
-    // Начальная и конечная рамка, как в Final Cut Pro: масштаб и точка, к которой едет камера
-    const k = R.ease.inOut(t / dur)
-    const s = R.mix(1, 1.25, k)
-    const x = R.mix(0, -260, k), y = R.mix(0, -40, k)
-    $('.pic').style.transform = `translate(${x}px, ${y}px) scale(${s})`
+  draw({ t, $ }) {
+    const cut = t >= 1.4                                            // склейка на 1,4 с
+    $('.a').style.display = cut ? 'none' : ''
+    $('.b').style.display = cut ? '' : 'none'
+    // До склейки точка стоит после слова размером 60 px и растёт в круг 420 px по центру
+    const k = R.ease.inOutCubic(R.prog(t, 0.5, 0.8))
+    const x = R.mix(990, 960, k), s = R.mix(60 / 420, 1, k)
+    $('.a .dot').style.transform = `translate(${x - 960}px, ${R.mix(50, 0, k)}px) scale(${s})`
+    $('.a .w').style.transform = `translateY(-58%) translateX(${-600 * k}px)`   // слово уезжает влево и освобождает место
+    $('.cap').style.visibility = t >= 1.9 ? 'visible' : 'hidden'
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Наезд рывками</h3>
+    <p>Склейками на долях камера резко подходит ближе к слову, каждый раз с коротким ударом</p>
+    <p class="mute">Словами для ИИ «три склейки через 0,5 с, каждая ближе к слову HTML, масштаб 1,7, 2,8 и 4,6, удар +4 % гаснет за 80 мс»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Наезд рывками» из пакета «Ролик из HTML». Ниже готовый код. Поменяй фразу, слово и число планов под мой ролик, механику не трогай</div>
+    <p class="src">По-английски punch-in или cut-in, более крупный план того же кадра склейкой (<a href="https://www.studiobinder.com/blog/what-is-a-film-cut-definition/">StudioBinder</a>, <a href="https://www.premiumbeat.com/blog/mastering-zoom-and-punch-in/">PremiumBeat</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Наезд рывками». Склейками на долях камера резко подходит ближе к слову, каждый раз с коротким ударом
+scene({
+  name: 'Наезд рывками',
+  dur: 2.6,
+  note: 'Фраза, затем три склейки через 0,5 с, каждая ближе к слову HTML, удар +4 % гаснет за 80 мс',
+  html: `<div class="cam"><div class="tx">Ролик из <b>HTML</b></div></div>`,
+  css: `
+    .cam { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .tx { font-weight: 800; font-size: 150px; letter-spacing: -0.03em; white-space: nowrap; }
+    .tx b { color: var(--accent); font-weight: inherit; }
+  `,
+  draw({ t, $ }) {
+    const steps = [1, 1.7, 2.8, 4.6]                                // масштаб на каждом плане
+    const i = Math.min(steps.length - 1, Math.max(0, Math.floor((t - 0.5) / 0.5) + 1))
+    const lt = t - (0.5 + (i - 1) * 0.5)                            // время с последней склейки
+    const hit = i > 0 ? 1 + 0.04 * (1 - R.ease.out(R.prog(lt, 0, 0.08))) : 1
+    const b = $('.tx b'), cam = $('.cam')
+    const x = b.offsetLeft + b.offsetWidth / 2, y = b.offsetTop + b.offsetHeight / 2   // камера целится в слово HTML
+    cam.style.transformOrigin = `${x}px ${y}px`
+    cam.style.transform = `translate(${(960 - x) * Math.min(1, i)}px, 0) scale(${steps[i] * hit})`
   }
 })
 </script>
@@ -823,9 +999,12 @@ scene({
   <li>12 принципов анимации, O. Johnston, F. Thomas «The Illusion of Life: Disney Animation», 1981, <a href="https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation">Википедия</a></li>
   <li>Монтажные переходы, <a href="https://www.studiobinder.com/blog/types-of-editing-transitions-in-film/">StudioBinder</a> и <a href="https://www.nyfa.edu/student-resources/a-beginners-guide-to-film-editing-vocabulary/">NYFA</a></li>
   <li>J. Heer, G. Robertson «Animated Transitions in Statistical Data Graphics», IEEE InfoVis 2007, <a href="https://idl.uw.edu/papers/animated-transitions/">idl.uw.edu</a></li>
+  <li>Задержки по сетке, перебор знаков, прорисовка линий, документация <a href="https://gsap.com/docs/v3/">GSAP</a></li>
+  <li>Текст по пути, <a href="https://www.w3.org/TR/SVG2/text.html#TextLayoutPath">SVG 2, W3C</a> и <a href="https://helpx.adobe.com/after-effects/desktop/animating-text/text-animation/animating-text.html">After Effects</a></li>
+  <li>Монтаж по форме и наезд склейкой, <a href="https://www.studiobinder.com/blog/match-cuts-creative-transitions-examples/">StudioBinder</a> и <a href="https://www.premiumbeat.com/blog/mastering-zoom-and-punch-in/">PremiumBeat</a></li>
 </ul>
 
-<p class="mute" style="margin-top: 72px">Агент в папке берёт код отсюда сам. Напишите ему, например, «сделай сцену по приёму Счётчик из Приёмы движения.html»</p>
+<p class="mute" style="margin-top: 72px">Агент в папке берёт код отсюда сам. Напишите ему, например, «сделай сцену по приёму Кольцо прогресса из Приёмы движения.html»</p>
 
 </div>
 <script>
