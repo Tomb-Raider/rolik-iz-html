@@ -109,6 +109,7 @@ h2 + .sub { margin-top: 0; }
 <div class="page">
 
 <nav class="nav">
+  <a href="index.html">Ролик из HTML</a>
   <a href="Плеер.html">Плеер</a>
   <a href="Приёмы%20движения.html">Приёмы движения</a>
   <a class="on" href="Как%20разобрать%20референс.html">Как разобрать референс</a>
@@ -558,6 +559,12 @@ function exInit() {
     exSetSpeed(+b.dataset.speed)
     document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x === b))
   }))
+  // Ссылки открываются в новой вкладке, текущая страница остаётся открытой. Ссылка на текущую страницу не нужна
+  document.querySelectorAll('a[href]').forEach(a => {
+    if (a.classList.contains('on')) { a.removeAttribute('href'); return }
+    a.target = '_blank'
+    a.rel = 'noopener'
+  })
   typograph(document.body)
   requestAnimationFrame(exTick)
 }
