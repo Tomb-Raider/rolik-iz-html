@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Приёмы движения</title>
+<style>
+/* Страницы пакета «Ролик из HTML». Цвета как у плеера */
+:root {
+  --ui-bg: #121316; --ui-fg: #ECECEE; --ui-mute: #86878D; --ui-line: #232428; --ui-line2: #393A40;
+  --ui-ok: #7FD49B; --ui-bad: #FFB4AA;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+html { background: var(--ui-bg); color: var(--ui-fg); }
+body {
+  margin: 0; background: var(--ui-bg); color: var(--ui-fg);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 1120px; margin: 0 auto; padding: 28px 24px 120px; }
+.nav { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-bottom: 72px; font-size: 14px; }
+.nav a { color: var(--ui-mute); text-decoration: none; }
+.nav a:hover, .nav a.on { color: var(--ui-fg); }
+h1 { margin: 0 0 18px; font-size: 48px; line-height: 1.08; font-weight: 650; letter-spacing: -0.02em; }
+h2 { margin: 96px 0 14px; font-size: 30px; line-height: 1.15; font-weight: 620; letter-spacing: -0.01em; }
+h3 { margin: 0 0 6px; font-size: 19px; line-height: 1.3; font-weight: 600; }
+p, li { max-width: 740px; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin: 0 0 6px; }
+a { color: var(--ui-fg); text-underline-offset: 3px; text-decoration-color: var(--ui-line2); }
+.lead { max-width: 760px; margin: 0 0 20px; font-size: 20px; line-height: 1.5; color: var(--ui-mute); }
+.mute { color: var(--ui-mute); }
+.sub { margin: -4px 0 36px; color: var(--ui-mute); }
+code { font: 0.9em/1 var(--mono); padding: 2px 5px; border-radius: 4px; background: var(--ui-line); }
+pre.prompt {
+  max-width: 740px; margin: 0 0 12px; padding: 16px 18px; border-radius: 8px; background: var(--ui-line);
+  font: 14px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.btn {
+  appearance: none; border: 0; border-radius: 6px; padding: 7px 14px; cursor: pointer;
+  background: var(--ui-fg); color: var(--ui-bg); font: inherit; font-size: 14px;
+}
+.btn:hover { opacity: .9; }
+.btn.ghost { background: none; color: var(--ui-mute); padding: 7px 8px; }
+.btn.ghost:hover, .btn.ghost.on { color: var(--ui-fg); opacity: 1; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 8px; font-size: 14px; color: var(--ui-mute); }
+
+/* Живые примеры */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr)); gap: 56px 36px; }
+.grid.wide { grid-template-columns: 1fr; }
+.ex-frame { position: relative; overflow: hidden; border-radius: 4px; background: #0B0D10; cursor: pointer; margin: 0 0 16px; }
+.ex-frame.ex-paused::after {
+  content: "Пауза"; position: absolute; right: 10px; top: 8px; font-size: 12px; color: var(--ui-mute);
+}
+.ex-stage {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden;
+  --bg: #0B0D10; --fg: #FFFFFF; --accent: #3D7CFF;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg); color: var(--fg); font: 400 16px/1.2 var(--font);
+}
+.ex-slot { position: absolute; inset: 0; display: none; }
+.ex-slot.on { display: block; }
+.ex-slot > .ex-scene { position: absolute; inset: 0; }
+.ex-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; background: rgba(255, 255, 255, .28); }
+.ex-err {
+  position: absolute; inset: auto 8px 8px; display: none; margin: 0; padding: 8px 10px; border-radius: 6px;
+  background: rgba(20, 0, 0, .85); color: var(--ui-bad); font: 12px/1.4 var(--mono); white-space: pre-wrap;
+}
+.ex-err.on { display: block; }
+.ex p { margin: 0 0 8px; }
+.ex .ex-prompt { display: none; }
+.ex .btn { margin-top: 6px; }
+.src { font-size: 14px; color: var(--ui-mute); }
+.src a { color: var(--ui-mute); }
+.src a:hover { color: var(--ui-fg); }
+.sources li { color: var(--ui-mute); }
+
+@media (max-width: 640px) {
+  .page { padding: 20px 16px 96px; }
+  .nav { margin-bottom: 48px; }
+  h1 { font-size: 36px; }
+  h2 { font-size: 26px; margin-top: 72px; }
+  .lead { font-size: 18px; }
+}
+
+</style>
+</head>
+<body>
+<div class="page">
+
+<nav class="nav">
+  <a href="Плеер.html">Плеер</a>
+  <a class="on" href="Приёмы%20движения.html">Приёмы движения</a>
+  <a href="Как%20разобрать%20референс.html">Как разобрать референс</a>
+  <a href="Если%20что-то%20не%20так.html">Если что-то не так</a>
+</nav>
+
+<h1>Приёмы движения</h1>
+<p class="lead">Готовые стили и приёмы, каждый уже работает в плеере. Скопируйте нужный и отправьте ИИ вместе с заданием, что в нём поменять</p>
+<div class="tools">Скорость
+  <button class="btn ghost on" data-speed="1">1×</button>
+  <button class="btn ghost" data-speed="0.5">0,5×</button>
+  <button class="btn ghost" data-speed="0.25">0,25×</button>
+  <span class="mute">&nbsp;Щелчок по кадру ставит на паузу</span>
+</div>
+
+<h2>Стили</h2>
+<p class="sub">Стиль задаёт характер всего ролика. Возьмите один и держитесь его во всех сценах</p>
+<div class="grid">
+
+  <div class="ex">
+    <h3>Короткие фразы как в рекламе Apple</h3>
+    <p>Слово, к нему дописывается второе, жёсткая склейка с ударом, непрерывный отъезд. Числа сняты покадрово с рекламы</p>
+    <p class="mute">Для коротких роликов из фраз, анонсов, финала презентации. Этот пресет уже есть в инструкции для ИИ</p>
+    <div class="ex-prompt">Сделай ролик по пресету «Короткие фразы как в рекламе Apple» из инструкции «Ролик из HTML». Ниже готовый код пресета с примером. Поменяй фразы под мой ролик, механику и числа не трогай</div>
+    <p class="src">Источник покадровый замер рекламы Apple, как его делали, на странице «Как разобрать референс». Кривая дописывания easeInOutQuint из набора Роберта Пеннера (<a href="https://easings.net/">easings.net</a>)</p>
+    <button class="btn" data-copy>Скопировать стиль для ИИ</button>
+    <script type="text/plain">
+// Пресет «Короткие фразы как в рекламе Apple». Числа сняты покадрово с референса, не меняй их
+const FPS = 24, F = 1 / FPS
+
+function phrases(name, lines, { life = 1.2, first = 0.43, enter = true } = {}) {
+  return {
+    name,
+    dur: lines.length * life,
+    note: lines.map(l => l.join(' ')).join(' / '),
+    html: lines.map(([a, b]) =>
+      `<div class="line"><span>${a}</span><span class="add"><span>&nbsp;${b}</span></span></div>`).join(''),
+    css: `
+      .line { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+              font-weight: 700; font-size: 154px; line-height: 1.25; letter-spacing: -0.015em; white-space: nowrap; }
+      .add { display: flex; justify-content: flex-end; overflow: hidden; }
+      .add > span { flex: none; }
+    `,
+    draw({ t, $$, w }) {
+      t = R.snap(t, FPS)                                          // рубленая сетка 24 кадра в секунду
+      const k = Math.min(lines.length - 1, Math.floor(t / life))  // какая строка сейчас
+      $$('.line').forEach((line, i) => {
+        line.style.display = i === k ? '' : 'none'               // склейка: кадр старой строки, следующий кадр новой
+        if (i !== k) return
+        const lt = t - k * life                                   // время внутри строки
+        const add = line.lastElementChild, word = add.firstElementChild
+        add.style.width = word.offsetWidth * R.ease.inOutQuint(R.prog(lt, first, 0.25)) + 'px'  // дописывание 250 мс
+        word.style.visibility = lt >= first + 0.167 ? 'visible' : 'hidden'  // слово возникает за 83 мс до остановки
+        let s = 1 - 0.15 * lt                                     // непрерывный отъезд, -15 % в секунду
+        if (lt >= life - 2 * F) s -= lt >= life - F ? 0.03 : 0.01 // разгон перед склейкой
+        if (k > 0 || !enter) s *= 1 + 0.05 * (1 - R.ease.out(R.prog(lt, 0, 0.06)))  // удар +5 % на склейке
+        const x = k === 0 && enter ? -0.15 * w * (1 - R.ease.enter(R.prog(lt, 0, 0.417))) : 0  // въезд слева
+        line.style.transform = `translateX(${x}px) scale(${s})`
+      })
+    }
+  }
+}
+
+scene(phrases('Фразы', [
+  ['Идея', 'за минуту.'],
+  ['Сцены', 'из кода.'],
+  ['Цвет', 'из бренда.'],
+]))
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Плавный</h3>
+    <p>Слова выезжают снизу из-под маски по одному и вместе уходят вверх. Мягкие кривые, без ударов и жёстких склеек</p>
+    <p class="mute">Для продуктовых релизов, спокойных анонсов, роликов про интерфейс</p>
+    <div class="ex-prompt">Стиль «Плавный» для ролика из HTML. Сделай все сцены моего ролика в этом стиле. Ниже правила и готовый код, числа не меняй
+
+Как выглядит
+- Каждое слово в своей маске. Слова выезжают снизу из-под маски по одному, шаг 80 мс
+- Выезд 700 мс по R.ease.outCubic, сильное торможение в конце
+- За 450 мс до конца сцены все слова вместе уходят вверх за 400 мс по R.ease.inOutCubic. Следующая сцена начинается с пустого кадра, поэтому склейки не видно
+- Линии и плашки растут от края за 800 мс по R.ease.inOutCubic и уходят вместе со словами
+- Числа набегают от нуля за 1,4 с по R.ease.outCubic
+- Текст держится целиком не меньше 1 с, сцена от 2,2 с
+- Время не округляй через R.snap, движение плавное
+
+Чего не делать
+- Ударов, перелёта, мигания и жёстких склеек посреди текста
+- Проявления (fade), размытия, поворотов
+- Выездов текста сбоку, только снизу вверх из-под маски</div>
+    <p class="src">Маска работает как track matte в After Effects (<a href="https://helpx.adobe.com/after-effects/desktop/work-with-transparency-and-compositing/work-with-track-mattes-and-traveling-mattes/track-mattes-and-traveling-mattes.html">Adobe</a>). Кривые easeOutCubic и easeInOutCubic Роберта Пеннера (<a href="https://easings.net/">easings.net</a>). 700 и 400 мс это токены slow-02 и slow-01 IBM Carbon (<a href="https://carbondesignsystem.com/elements/motion/overview/">Carbon</a>). Шаг 80 мс подобран нами, общепринятой нормы для шага нет</p>
+    <button class="btn" data-copy>Скопировать стиль для ИИ</button>
+    <script type="text/plain">
+// Стиль «Плавный». Слова выезжают снизу из-под маски по одному и вместе уходят вверх.
+// Мягкие кривые, без ударов, жёстких склеек и мигания
+const IN = 0.7, STEP = 0.08, OUT = 0.4      // выезд 700 мс, шаг между словами 80 мс, уход 400 мс
+
+// Каждое слово в своей маске: снаружи обрезка, внутри само слово
+const masked = text => text.split(' ').map(w => `<span class="m"><span class="w">${w}</span></span>`).join(' ')
+const MASK_CSS = `
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0 0.05em 0.14em; margin: 0 -0.05em -0.14em; }
+  .w { display: inline-block; }
+`
+// Выезд снизу по одному слову, в конце сцены все слова уходят вверх
+function rise(words, t, dur, start = 0.1) {
+  const out = R.ease.inOutCubic(R.prog(t, dur - OUT - 0.05, OUT))
+  words.forEach((w, i) => {
+    const k = R.ease.outCubic(R.prog(t, start + i * STEP, IN))
+    w.style.transform = `translateY(${(1 - k - out) * 110}%)`
+  })
+}
+
+scene({
+  name: 'Титул',
+  dur: 2.4,
+  note: 'Название выезжает снизу по словам, под ним прорисовывается линия цвета акцента',
+  html: `<div class="c"><div class="t">${masked('Ролик из HTML')}</div><i class="line"></i></div>`,
+  css: MASK_CSS + `
+    .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px; }
+    .t { font-weight: 600; font-size: 150px; line-height: 1.1; letter-spacing: -0.025em; }
+    .line { display: block; width: 560px; height: 8px; border-radius: 4px; background: var(--accent); }
+  `,
+  draw({ t, dur, $, $$ }) {
+    rise($$('.w'), t, dur)
+    const grow = R.ease.inOutCubic(R.prog(t, 0.45, 0.8))            // линия растёт слева направо
+    const gone = R.ease.inOutCubic(R.prog(t, dur - OUT - 0.05, OUT))  // и уходит вправо вместе со словами
+    const line = $('.line')
+    line.style.transformOrigin = gone > 0 ? '100% 50%' : '0 50%'
+    line.style.transform = `scaleX(${gone > 0 ? 1 - gone : grow})`
+  }
+})
+
+scene({
+  name: 'Фразы',
+  dur: 2.6,
+  note: 'Две строки выезжают снизу по словам, вторая приглушена',
+  html: `<div class="c"><div>${masked('Идея за минуту.')}</div><div class="dim">${masked('Сцены из кода.')}</div></div>`,
+  css: MASK_CSS + `
+    .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+         font-weight: 600; font-size: 128px; line-height: 1.12; letter-spacing: -0.02em; }
+    .dim { opacity: 0.45; }
+  `,
+  draw({ t, dur, $$ }) { rise($$('.w'), t, dur) }
+})
+
+scene({
+  name: 'Число',
+  dur: 2.6,
+  note: 'Число набегает от нуля до 24 по мягкой кривой, подпись выезжает снизу',
+  html: `<div class="c"><div class="n">${masked('0')}</div><div class="cap">${masked('кадра в секунду')}</div></div>`,
+  css: MASK_CSS + `
+    .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .n { font-weight: 600; font-size: 380px; line-height: 1; letter-spacing: -0.04em; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .cap { margin-top: 8px; font-size: 72px; font-weight: 500; opacity: 0.6; }
+  `,
+  draw({ t, dur, $, $$ }) {
+    rise($$('.w'), t, dur)
+    $('.n .w').textContent = Math.round(24 * R.ease.outCubic(R.prog(t, 0.1, 1.4)))   // от 0 до 24 за 1,4 с
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Пролёт</h3>
+    <p>Камера медленно наезжает на фразу и в конце пролетает сквозь точку. Точка заливает кадр, следующая сцена в обратных цветах</p>
+    <p class="mute">Для тизеров и коротких роликов из 3-5 фраз</p>
+    <div class="ex-prompt">Стиль «Пролёт» для ролика из HTML. Сделай все сцены моего ролика в этом стиле. Ниже правила и готовый код, числа не меняй
+
+Как выглядит
+- В каждой сцене одна короткая фраза по центру, Bold, 140-150 px, в конце фразы точка
+- Точка это круг, а не символ. Так её центр известен точно
+- Всю сцену камера медленно наезжает на точку, на 6 % за сцену
+- Последние 600 мс камера пролетает сквозь точку. Масштаб растёт до 150 раз по R.ease.in, точка заливает весь кадр цветом текста
+- Следующая сцена в обратных цветах, её фон цвета текста прошлой сцены. Поэтому склейки не видно
+- Последняя сцена ролика без пролёта, только наезд
+- Сцена 2-3 с, фраза до 20 знаков, иначе не влезет в кадр
+
+Чего не делать
+- Проявлений (fade), размытия, поворотов
+- Вертикального движения текста
+- Других переходов между сценами, кроме пролёта сквозь точку</div>
+    <p class="src">Пролёт подсмотрен в той же рекламе Apple, переход на 25-26 секунде сквозь текст. Признанного названия в словарях монтажа у него нет. Медленный наезд это эффект Кена Бёрнса (<a href="https://support.apple.com/en-ca/guide/final-cut-pro/verb8e5de9c/mac">Final Cut Pro</a>)</p>
+    <button class="btn" data-copy>Скопировать стиль для ИИ</button>
+    <script type="text/plain">
+// Стиль «Пролёт». Камера медленно наезжает на фразу, в конце сцены пролетает сквозь точку.
+// Точка заливает весь кадр своим цветом, следующая сцена идёт в обратных цветах
+const PUSH = 0.06        // медленный наезд, 6 % за сцену
+const FLY = 0.6          // пролёт занимает последние 600 мс сцены
+const FLY_SCALE = 150    // во сколько раз вырастает точка, с запасом на весь кадр
+
+function fly(name, text, { dur = 2.4, inverse = false, size = 150, through = true } = {}) {
+  return {
+    name, dur,
+    note: `${text.replace(/<[^>]+>/g, '')}. ${through ? 'В конце пролёт сквозь точку' : 'Медленный наезд'}`,
+    html: `<div class="cam"><div class="tx">${text}<i class="dot"></i></div></div>`,
+    css: `
+      :scope { background: ${inverse ? 'var(--fg)' : 'var(--bg)'}; color: ${inverse ? 'var(--bg)' : 'var(--fg)'}; }
+      .cam { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+      .tx { font-weight: 700; font-size: ${size}px; line-height: 1; letter-spacing: -0.03em; white-space: nowrap; }
+      .tx b { color: var(--accent); font-weight: inherit; }
+      .dot { display: inline-block; width: 0.2em; height: 0.2em; margin-left: 0.05em; border-radius: 50%; background: currentColor; }
+    `,
+    draw({ t, dur, $ }) {
+      const cam = $('.cam'), dot = $('.dot')
+      // Центр точки в кадре. Наезд и пролёт идут к этой точке, поэтому она стоит на месте
+      const x = dot.offsetLeft + dot.offsetWidth / 2, y = dot.offsetTop + dot.offsetHeight / 2
+      let s = 1 + PUSH * t / dur
+      if (through) s *= Math.exp(Math.log(FLY_SCALE) * R.ease.in(R.prog(t, dur - FLY, FLY)))
+      cam.style.transformOrigin = `${x}px ${y}px`
+      cam.style.transform = `scale(${s})`
+    }
+  }
+}
+
+scene(fly('Титул', 'Ролик из HTML'))
+scene(fly('Фразы', 'Идея за минуту', { inverse: true }))
+scene(fly('Число', '<b>24</b> кадра в секунду', { size: 140, through: false }))
+</script>
+  </div>
+
+</div>
+
+<h2>Приёмы</h2>
+<p class="sub">Отдельные движения и переходы с признанными названиями. Под каждым источник. Их можно ставить в ролик любого стиля, если под приёмом не сказано иное</p>
+<div class="grid">
+
+  <div class="ex">
+    <h3>Счётчик</h3>
+    <p>Число набегает от нуля с торможением в конце</p>
+    <p class="mute">Словами для ИИ «число набегает от 0 до 12 480 за 1,4 с, в конце торможение, подпись появляется склейкой»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Счётчик» из пакета «Ролик из HTML». Ниже готовый код. Поменяй текст, числа и длительность под мой ролик, механику не трогай</div>
+    <p class="src">По-английски count-up. В After Effects для счётчиков есть эффект Numbers (<a href="https://helpx.adobe.com/after-effects/desktop/add-text/text-effects/text-effects.html">Adobe</a>). Кривая easeOutCubic (<a href="https://easings.net/">easings.net</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Счётчик». Число набегает от нуля с торможением в конце
+scene({
+  name: 'Счётчик',
+  dur: 2.6,
+  note: 'Число набегает от 0 до 12 480 за 1,4 с, подпись встаёт склейкой',
+  html: `<div class="c"><div class="n">0</div><div class="cap">просмотров за неделю</div></div>`,
+  css: `
+    .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+    .n { font-weight: 700; font-size: 300px; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+    .cap { font-size: 64px; font-weight: 500; opacity: 0.6; }
+  `,
+  draw({ t, $ }) {
+    const to = 12480
+    const k = R.ease.outCubic(R.prog(t, 0.1, 1.4))                   // от нуля до числа за 1,4 с
+    $('.n').textContent = Math.round(to * k).toLocaleString('ru-RU')  // пробел между тысячами
+    $('.cap').style.visibility = t >= 0.9 ? 'visible' : 'hidden'     // подпись склейкой, без проявления
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Печать по букве</h3>
+    <p>Фраза набирается по букве, каретка мигает</p>
+    <p class="mute">Словами для ИИ «фраза набирается по букве каждые 70 мс, каретка цвета акцента мигает раз в 0,5 с»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Печать по букве» из пакета «Ролик из HTML». Ниже готовый код. Поменяй текст и длительность под мой ролик, механику не трогай</div>
+    <p class="src">По-английски typewriter. Описан в GSAP TextPlugin (<a href="https://gsap.com/docs/v3/Plugins/TextPlugin/">GSAP</a>), в After Effects есть такой пресет (<a href="https://www.adobe.com/learn/after-effects/web/the-unlock-how-to-create-a-typewriter-effect-in-after-effects">Adobe</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Печать по букве». Каретка мигает от времени t, а не CSS-анимацией
+scene({
+  name: 'Печать',
+  dur: 2.4,
+  note: 'Фраза набирается по букве каждые 70 мс, каретка цвета акцента',
+  html: `<div class="c"><span class="txt"></span><i class="caret"></i></div>`,
+  css: `
+    .c { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+         font-weight: 700; font-size: 140px; letter-spacing: -0.02em; white-space: pre; }
+    .caret { display: block; width: 0.07em; height: 0.78em; margin-left: 0.05em; background: var(--accent); }
+  `,
+  draw({ t, $ }) {
+    const text = 'Напишите что угодно'
+    const n = Math.min(text.length, Math.floor(R.snap(t, 24) / 0.07))  // буква каждые 70 мс
+    $('.txt').textContent = text.slice(0, n)
+    const blink = Math.floor(t / 0.5) % 2 === 0                         // мигание раз в 0,5 с
+    $('.caret').style.visibility = n < text.length || blink ? 'visible' : 'hidden'
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Бегущая строка</h3>
+    <p>Слова едут справа налево с постоянной скоростью без конца</p>
+    <p class="mute">Словами для ИИ «строка из слов едет справа налево 300 px в секунду, каждое второе слово цвета акцента»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Бегущая строка» из пакета «Ролик из HTML». Ниже готовый код. Поменяй слова и скорость под мой ролик, механику не трогай</div>
+    <p class="src">По-английски news ticker или crawl, бегущая строка телеканалов (<a href="https://en.wikipedia.org/wiki/News_ticker">Википедия</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Бегущая строка». Слова едут справа налево с постоянной скоростью без конца
+const MARQUEE_WORDS = ['Плеер', 'Сцены', 'Таймлайн', 'Запись', 'Музыка', 'Правки']
+
+scene({
+  name: 'Бегущая строка',
+  dur: 4,
+  note: 'Строка из слов едет справа налево 300 px в секунду, каждое второе слово цвета акцента',
+  // Список слов повторён дважды, поэтому строка не кончается
+  html: `<div class="row"><div class="track">${MARQUEE_WORDS.concat(MARQUEE_WORDS).map(w => `<span>${w}</span>`).join('')}</div></div>`,
+  css: `
+    .row { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); overflow: hidden; }
+    .track { display: flex; width: max-content; font-weight: 700; font-size: 130px; letter-spacing: -0.02em; white-space: nowrap; }
+    .track span { padding-right: 0.5em; }
+    .track span:nth-child(even) { color: var(--accent); }
+  `,
+  draw({ t, $ }) {
+    const track = $('.track')
+    const half = track.scrollWidth / 2                       // длина одного списка слов
+    track.style.transform = `translateX(${-((t * 300) % half)}px)`
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>По одному</h3>
+    <p>Элементы встают по очереди, каждый следующий через 100 мс</p>
+    <p class="mute">Словами для ИИ «шесть плиток встают по одной, каждая за 300 мс, шаг 100 мс»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «По одному» из пакета «Ролик из HTML». Ниже готовый код. Поменяй элементы и цвета под мой ролик, механику не трогай</div>
+    <p class="src">По-английски stagger (<a href="https://m2.material.io/design/motion/customization.html">Material Design</a>, <a href="https://gsap.com/resources/getting-started/Staggers">GSAP</a>). По исследованию Heer и Robertson (2007) поэтапную анимацию зрители понимают лучше (<a href="https://idl.uw.edu/papers/animated-transitions/">IEEE InfoVis</a>). 300 мс это токен medium2 Material 3 (<a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">M3</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «По одному». Элементы встают по очереди с шагом 100 мс
+const TILE_COLORS = ['var(--c1, #3D7CFF)', 'var(--c2, #22C1A6)', 'var(--c3, #FFC53D)', 'var(--c4, #FF6B4A)', 'var(--c5, #B26BFF)', 'var(--c1, #3D7CFF)']
+
+scene({
+  name: 'По одному',
+  dur: 2.4,
+  note: 'Шесть плиток цветов бренда встают по одной, каждая за 300 мс',
+  html: `<div class="grid">${TILE_COLORS.map(c => `<i style="background: ${c}"></i>`).join('')}</div>`,
+  css: `
+    .grid { position: absolute; left: 50%; top: 50%; display: grid; grid-template-columns: repeat(3, 260px); gap: 40px;
+            transform: translate(-50%, -50%); }
+    .grid i { display: block; height: 260px; border-radius: 40px; }
+  `,
+  draw({ t, $$ }) {
+    $$('.grid i').forEach((tile, i) => {
+      const k = R.ease.outCubic(R.prog(t, 0.15 + i * 0.1, 0.3))   // плитка встаёт за 300 мс, следующая через 100 мс
+      tile.style.transform = `scale(${k})`
+    })
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Столбики</h3>
+    <p>Столбики растут снизу по очереди, над каждым набегает число. Один столбик выделен</p>
+    <p class="mute">Словами для ИИ «столбики растут по очереди за 700 мс с шагом 120 мс, самый высокий цвета акцента»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Столбики» из пакета «Ролик из HTML». Ниже готовый код. Поменяй подписи и значения в BARS_DATA под мой ролик, механику не трогай</div>
+    <p class="src">Рост по очереди это тот же stagger. Анимированные переходы в графиках исследовали Heer и Robertson (<a href="https://idl.uw.edu/papers/animated-transitions/">IEEE InfoVis</a>). 700 мс это токен slow-02 IBM Carbon (<a href="https://carbondesignsystem.com/elements/motion/overview/">Carbon</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Столбики». Столбики растут снизу по очереди, над каждым набегает число. Один столбик выделен
+const BARS_DATA = [['Пн', 32], ['Вт', 45], ['Ср', 38], ['Чт', 61], ['Пт', 96]]
+
+scene({
+  name: 'Столбики',
+  dur: 3,
+  note: 'Пять столбиков растут снизу по очереди, последний выше всех и цвета акцента',
+  html: `<div class="chart">${BARS_DATA.map(([d]) => `<div class="col"><b>0</b><i></i><span>${d}</span></div>`).join('')}</div>`,
+  css: `
+    .chart { position: absolute; left: 50%; bottom: 150px; display: flex; align-items: flex-end; gap: 72px; transform: translateX(-50%); }
+    .col { display: flex; flex-direction: column; align-items: center; width: 180px; }
+    .col b { font-size: 60px; font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 18px; }
+    .col i { display: block; width: 100%; height: 600px; border-radius: 12px 12px 0 0; background: var(--fg); opacity: 0.25; transform-origin: 50% 100%; }
+    .col:last-child i { background: var(--accent); opacity: 1; }
+    .col span { margin-top: 24px; font-size: 44px; opacity: 0.6; }
+  `,
+  draw({ t, $$ }) {
+    const max = Math.max(...BARS_DATA.map(b => b[1]))
+    $$('.col').forEach((col, i) => {
+      const v = BARS_DATA[i][1]
+      const k = R.ease.outCubic(R.prog(t, 0.2 + i * 0.12, 0.7))   // столбик растёт 700 мс, следующий через 120 мс
+      col.querySelector('i').style.transform = `scaleY(${k * v / max})`
+      col.querySelector('b').textContent = Math.round(v * k)
+      col.querySelector('b').style.transform = `translateY(${(1 - k * v / max) * 600}px)`  // число едет вместе с верхом столбика
+    })
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>График рисуется</h3>
+    <p>Линия прорисовывается слева направо, точка бежит по её концу</p>
+    <p class="mute">Словами для ИИ «линия графика рисуется за 1,6 с, белая точка на её конце, в конце подпись склейкой»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «График рисуется» из пакета «Ролик из HTML». Ниже готовый код. Поменяй форму линии и подпись под мой ролик, механику не трогай</div>
+    <p class="src">Прорисовка линии через stroke-dashoffset, так работает DrawSVGPlugin (<a href="https://gsap.com/docs/v3/Plugins/DrawSVGPlugin/">GSAP</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «График рисуется». Линия прорисовывается слева направо, точка бежит по её концу
+scene({
+  name: 'График',
+  dur: 3,
+  note: 'Линия графика рисуется за 1,6 с, точка на её конце, в конце подпись склейкой',
+  html: `
+    <div class="val">+42 %</div>
+    <svg class="ch" viewBox="0 0 1600 640">
+      <path class="ln" d="M0 600 C 220 580, 320 500, 480 520 S 760 400, 900 360 S 1180 280, 1300 180 S 1500 70, 1600 40"/>
+      <circle class="dot" r="20"/>
+    </svg>`,
+  css: `
+    .val { position: absolute; left: 160px; top: 110px; font-weight: 700; font-size: 120px; letter-spacing: -0.02em; }
+    .ch { position: absolute; left: 160px; top: 300px; width: 1600px; height: 640px; overflow: visible; }
+    .ln { fill: none; stroke: var(--accent); stroke-width: 12; stroke-linecap: round; }
+    .dot { fill: var(--fg); }
+  `,
+  draw({ t, $ }) {
+    const path = $('.ln'), len = path.getTotalLength()
+    const k = R.ease.inOutCubic(R.prog(t, 0.2, 1.6))     // линия рисуется 1,6 с
+    path.style.strokeDasharray = len
+    path.style.strokeDashoffset = len * (1 - k)
+    const p = path.getPointAtLength(len * k)              // точка на конце линии
+    $('.dot').setAttribute('cx', p.x)
+    $('.dot').setAttribute('cy', p.y)
+    $('.val').style.visibility = t >= 1.9 ? 'visible' : 'hidden'
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Шторка</h3>
+    <p>Плоскость цвета проходит через кадр и меняет то, что под ней</p>
+    <p class="mute">Словами для ИИ «шторка цвета акцента проходит слева направо за 900 мс, текст меняется, когда она закрыла весь кадр»</p>
+    <p class="mute">Не для стиля Apple, там только жёсткие склейки</p>
+    <div class="ex-prompt">Добавь в ролик переход по приёму «Шторка» из пакета «Ролик из HTML». Ниже готовый код. Поменяй то, что до и после шторки, под мой ролик, механику не трогай</div>
+    <p class="src">По-английски wipe, классический монтажный переход (<a href="https://www.studiobinder.com/blog/types-of-editing-transitions-in-film/">StudioBinder</a>). 900 мс это токен extra-long3 Material 3 (<a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">M3</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Шторка». Плоскость цвета проходит через кадр и меняет то, что под ней
+scene({
+  name: 'Шторка',
+  dur: 2.4,
+  note: 'Шторка цвета акцента проходит слева направо за 900 мс, под ней «Было» меняется на «Стало»',
+  html: `<div class="t a">Было</div><div class="t b">Стало</div><i class="wp"></i>`,
+  css: `
+    .t { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+         font-weight: 700; font-size: 200px; letter-spacing: -0.03em; }
+    .wp { position: absolute; inset: 0; display: block; background: var(--accent); }
+  `,
+  draw({ t, $ }) {
+    const k = R.ease.inOutQuint(R.prog(t, 0.7, 0.9))           // первая половина закрывает кадр, вторая открывает
+    $('.wp').style.transform = `translateX(${R.mix(-100, 100, k)}%)`
+    const swapped = k >= 0.5                                    // текст меняется, когда шторка закрыла весь кадр
+    $('.a').style.display = swapped ? 'none' : ''
+    $('.b').style.display = swapped ? '' : 'none'
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Круг</h3>
+    <p>Новое содержимое открывается растущим кругом из точки</p>
+    <p class="mute">Словами для ИИ «из точки справа внизу за 800 мс растёт круг цвета акцента и открывает новый текст»</p>
+    <p class="mute">Не для стиля Apple, там только жёсткие склейки</p>
+    <div class="ex-prompt">Добавь в ролик переход по приёму «Круг» из пакета «Ролик из HTML». Ниже готовый код. Поменяй то, что до и после круга, под мой ролик, механику не трогай</div>
+    <p class="src">По-английски iris, растущая или сжимающаяся круговая шторка (<a href="https://www.studiobinder.com/blog/what-is-a-wipe-transition-in-film/">StudioBinder</a>, <a href="https://www.nyfa.edu/student-resources/a-beginners-guide-to-film-editing-vocabulary/">NYFA</a>). 800 мс это токен extra-long2 Material 3 (<a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">M3</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Круг». Новое содержимое открывается растущим кругом из точки
+scene({
+  name: 'Круг',
+  dur: 2.4,
+  note: 'Из точки справа внизу растёт круг цвета акцента и открывает «Стало»',
+  html: `<div class="t">Было</div><div class="nx"><div class="t">Стало</div></div>`,
+  css: `
+    .t { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+         font-weight: 700; font-size: 200px; letter-spacing: -0.03em; }
+    .nx { position: absolute; inset: 0; background: var(--accent); }
+  `,
+  draw({ t, $ }) {
+    const k = R.ease.inOutCubic(R.prog(t, 0.6, 0.8))          // круг растёт 800 мс
+    $('.nx').style.clipPath = `circle(${k * 1700}px at 72% 64%)`
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Наезд</h3>
+    <p>Камера медленно наезжает на неподвижную картинку и сдвигается к нужной части</p>
+    <p class="mute">Словами для ИИ «за всю сцену камера плавно наезжает на 25 % и сдвигается к солнцу, разгон и торможение»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по приёму «Наезд» (эффект Кена Бёрнса) из пакета «Ролик из HTML». Ниже готовый код. Поменяй картинку, масштаб и точку, к которой едет камера, под мой ролик, механику не трогай</div>
+    <p class="src">По-английски Ken Burns effect, наезд и панорама между начальной и конечной рамкой (<a href="https://support.apple.com/en-ca/guide/final-cut-pro/verb8e5de9c/mac">Final Cut Pro</a>, <a href="https://en.wikipedia.org/wiki/Ken_Burns_effect">Википедия</a>)</p>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Приём «Наезд», эффект Кена Бёрнса. Камера медленно наезжает на неподвижную картинку и сдвигается к нужной части
+scene({
+  name: 'Наезд',
+  dur: 4,
+  note: 'Картинка из простых фигур, камера за всю сцену наезжает на 25 % и сдвигается к солнцу',
+  html: `<div class="pic"><i class="sun"></i><i class="hill h1"></i><i class="hill h2"></i></div>`,
+  css: `
+    .pic { position: absolute; inset: 0; transform-origin: 0 0; }
+    .sun { position: absolute; left: 1240px; top: 200px; width: 260px; height: 260px; display: block; border-radius: 50%; background: var(--c3, #FFC53D); }
+    .hill { position: absolute; display: block; border-radius: 50%; }
+    .h1 { left: -300px; top: 640px; width: 1500px; height: 900px; background: var(--c2, #22C1A6); }
+    .h2 { left: 700px; top: 720px; width: 1700px; height: 900px; background: var(--accent); }
+  `,
+  draw({ t, dur, $ }) {
+    // Начальная и конечная рамка, как в Final Cut Pro: масштаб и точка, к которой едет камера
+    const k = R.ease.inOut(t / dur)
+    const s = R.mix(1, 1.25, k)
+    const x = R.mix(0, -260, k), y = R.mix(0, -40, k)
+    $('.pic').style.transform = `translate(${x}px, ${y}px) scale(${s})`
+  }
+})
+</script>
+  </div>
+
+</div>
+
+<h2>Принципы анимации</h2>
+<p class="sub">12 принципов из книги Олли Джонстона и Фрэнка Томаса «The Illusion of Life: Disney Animation» (1981), список в <a href="https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation">Википедии</a>. Здесь шесть, которые работают и для текста, и для интерфейсов. Числа в примерах подобраны нами</p>
+<div class="grid">
+  <div class="ex">
+    <h3>Сжатие и растяжение</h3>
+    <p>Мяч вытягивается по скорости в полёте и сплющивается при ударе. Так видно вес и упругость</p>
+    <p class="mute">По-английски Squash and stretch. Словами для ИИ «мяч прыгает раз в секунду, в полёте вытянут на 20 %, в последние 50 мс у пола сплющен»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по принципу «Сжатие и растяжение» (Squash and stretch) из пакета «Ролик из HTML». Ниже готовый код. Поменяй объекты и текст под мой ролик, механику не трогай</div>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Принцип «Сжатие и растяжение». Мяч вытягивается по скорости в полёте и сплющивается при ударе о пол
+scene({
+  name: 'Сжатие и растяжение',
+  dur: 3,
+  note: 'Мяч прыгает раз в секунду, в полёте вытянут, у пола сплющен',
+  html: `<i class="floor"></i><i class="ball"></i>`,
+  css: `
+    .floor { position: absolute; left: 560px; right: 560px; top: 860px; height: 6px; display: block; background: var(--fg); opacity: 0.25; }
+    .ball { position: absolute; left: 870px; top: 0; width: 180px; height: 180px; display: block; border-radius: 50%;
+            background: var(--accent); transform-origin: 50% 100%; }
+  `,
+  draw({ t, $ }) {
+    const period = 1, H = 520                              // прыжок раз в секунду на 520 px
+    const u = (t % period) / period
+    const y = H * 4 * u * (1 - u)                          // высота над полом по параболе, как у брошенного мяча
+    const v = Math.abs(1 - 2 * u)                          // скорость: у пола 1, в верхней точке 0
+    let sx = 1 - 0.15 * v, sy = 1 + 0.2 * v                // в полёте вытянут по направлению движения
+    const near = Math.min(u, 1 - u) * period               // сколько секунд до касания пола
+    if (near < 0.05) {                                     // последние 50 мс у пола сплющен
+      const k = 1 - near / 0.05
+      sx = R.mix(sx, 1.35, k)
+      sy = R.mix(sy, 0.72, k)
+    }
+    $('.ball').style.transform = `translateY(${860 - 180 - y}px) scale(${sx}, ${sy})`
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Подготовка</h3>
+    <p>Перед рывком объект чуть отходит назад. Зритель успевает понять, что сейчас будет движение</p>
+    <p class="mute">По-английски Anticipation. Словами для ИИ «перед рывком вправо квадрат за 500 мс отходит назад на 80 px и сжимается на 12 %»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по принципу «Подготовка» (Anticipation) из пакета «Ролик из HTML». Ниже готовый код. Поменяй объекты и текст под мой ролик, механику не трогай</div>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Принцип «Подготовка». Перед рывком вперёд объект чуть отходит назад и сжимается, как перед прыжком
+scene({
+  name: 'Подготовка',
+  dur: 2.6,
+  note: 'Два квадрата едут вправо, нижний сначала отходит назад на 80 px',
+  html: `<div class="row r1"><span>Без подготовки</span><i></i></div><div class="row r2"><span>С подготовкой</span><i></i></div>`,
+  css: `
+    .row { position: absolute; left: 160px; right: 160px; height: 200px; }
+    .r1 { top: 250px; } .r2 { top: 640px; }
+    .row span { position: absolute; left: 0; top: -76px; font-size: 44px; opacity: 0.6; }
+    .row i { position: absolute; left: 0; top: 0; width: 200px; height: 200px; display: block; border-radius: 32px;
+             background: var(--fg); transform-origin: 0 100%; }
+    .r2 i { background: var(--accent); }
+  `,
+  draw({ t, $ }) {
+    const dist = 1400
+    const go = R.ease.outCubic(R.prog(t, 0.8, 0.6))        // рывок вперёд 600 мс
+    $('.r1 i').style.transform = `translateX(${dist * go}px)`
+    const back = R.ease.inOut(R.prog(t, 0.3, 0.5)) * (1 - go)   // подготовка 500 мс перед рывком
+    const sq = 1 - 0.12 * back                             // сжимается на 12 % по высоте
+    $('.r2 i').style.transform = `translateX(${dist * go - 80 * back}px) scale(${2 - sq}, ${sq})`
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Медленный вход и выход</h3>
+    <p>Движение разгоняется в начале и тормозит в конце. Ровное движение выглядит механическим</p>
+    <p class="mute">По-английски Slow in and slow out. Словами для ИИ «точка едет 1,2 с с разгоном и торможением, кривая R.ease.inOutCubic»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по принципу «Медленный вход и выход» (Slow in and slow out) из пакета «Ролик из HTML». Ниже готовый код. Поменяй объекты и текст под мой ролик, механику не трогай</div>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Принцип «Медленный вход и выход». Движение разгоняется в начале и тормозит в конце
+scene({
+  name: 'Медленный вход и выход',
+  dur: 2.4,
+  note: 'Две точки едут одинаковое время, верхняя ровно, нижняя с разгоном и торможением',
+  html: `<div class="row r1"><span>Ровно</span><i></i></div><div class="row r2"><span>Разгон и торможение</span><i></i></div>`,
+  css: `
+    .row { position: absolute; left: 160px; right: 160px; height: 140px; }
+    .r1 { top: 290px; } .r2 { top: 650px; }
+    .row span { position: absolute; left: 0; top: -76px; font-size: 44px; opacity: 0.6; }
+    .row i { position: absolute; left: 0; top: 0; width: 140px; height: 140px; display: block; border-radius: 50%; background: var(--fg); }
+    .r2 i { background: var(--accent); }
+  `,
+  draw({ t, $ }) {
+    const k = R.prog(t, 0.4, 1.2)                          // обе едут 1,2 с
+    $('.r1 i').style.transform = `translateX(${1460 * R.ease.linear(k)}px)`
+    $('.r2 i').style.transform = `translateX(${1460 * R.ease.inOutCubic(k)}px)`
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Дуги</h3>
+    <p>Живое движение идёт по дуге, а не по прямой</p>
+    <p class="mute">По-английски Arc. Словами для ИИ «точка летит из левого нижнего угла в правый по дуге, а не по прямой, 1,4 с»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по принципу «Дуги» (Arc) из пакета «Ролик из HTML». Ниже готовый код. Поменяй объекты и текст под мой ролик, механику не трогай</div>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Принцип «Дуги». Живое движение идёт по дуге, а не по прямой
+scene({
+  name: 'Дуги',
+  dur: 2.4,
+  note: 'Две точки из одного места в одно, белая по прямой, синяя по дуге',
+  html: `
+    <svg class="tr" viewBox="0 0 1920 1080"><path d="M260 860 L1660 860"/><path d="M260 860 Q960 -340 1660 860"/></svg>
+    <i class="d d1"></i><i class="d d2"></i>`,
+  css: `
+    .tr { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .tr path { fill: none; stroke: var(--fg); stroke-width: 4; stroke-dasharray: 2 18; stroke-linecap: round; opacity: 0.35; }
+    .d { position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; display: block; border-radius: 50%; background: var(--fg); }
+    .d2 { background: var(--accent); }
+  `,
+  draw({ t, $ }) {
+    const k = R.ease.inOutCubic(R.prog(t, 0.4, 1.4))       // обе летят 1,4 с
+    const x = R.mix(260, 1660, k)
+    $('.d1').style.transform = `translate(${x}px, 860px)`
+    // Точка на кривой Безье: начало (260, 860), опора (960, -340), конец (1660, 860)
+    const y = (1 - k) * (1 - k) * 860 + 2 * (1 - k) * k * -340 + k * k * 860
+    $('.d2').style.transform = `translate(${x}px, ${y}px)`
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Захлёст и наложение</h3>
+    <p>Части объекта останавливаются не одновременно, хвост догоняет и чуть перелетает</p>
+    <p class="mute">По-английски Follow through and overlapping action. Словами для ИИ «три квадрата едут вправо, передний останавливается первым, каждый позади отстаёт на 80 мс и чуть проскакивает вперёд»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по принципу «Захлёст и наложение» (Follow through and overlapping action) из пакета «Ролик из HTML». Ниже готовый код. Поменяй объекты и текст под мой ролик, механику не трогай</div>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Принцип «Захлёст и наложение». Части объекта останавливаются не одновременно, хвост догоняет и чуть проскакивает вперёд
+scene({
+  name: 'Захлёст',
+  dur: 2.6,
+  note: 'Три квадрата едут вправо, сверху вместе, снизу задние отстают на 80 мс и проскакивают вперёд',
+  html: `<div class="row r1"><span>Вместе</span><i></i><i></i><i></i></div><div class="row r2"><span>С захлёстом</span><i></i><i></i><i></i></div>`,
+  css: `
+    .row { position: absolute; left: 860px; right: 160px; height: 160px; }
+    .r1 { top: 260px; } .r2 { top: 640px; }
+    .row span { position: absolute; left: 0; top: -76px; font-size: 44px; opacity: 0.6; }
+    .row i { position: absolute; top: 0; width: 160px; height: 160px; display: block; border-radius: 28px; background: var(--fg); }
+    .r2 i { background: var(--accent); }
+    .row i:nth-of-type(1) { left: 0; } .row i:nth-of-type(2) { left: 200px; } .row i:nth-of-type(3) { left: 400px; }
+  `,
+  draw({ t, $$ }) {
+    const from = -700
+    $$('.r1 i').forEach(sq => {
+      sq.style.transform = `translateX(${from * (1 - R.ease.outCubic(R.prog(t, 0.4, 0.8)))}px)`
+    })
+    $$('.r2 i').forEach((sq, i) => {
+      const lag = (2 - i) * 0.08                              // передний квадрат справа, каждый позади отстаёт на 80 мс
+      let x = from * (1 - R.ease.outCubic(R.prog(t, 0.4 + lag, 0.8)))
+      const s = t - (0.4 + lag + 0.8)                          // секунды после остановки
+      if (s > 0 && i < 2) x += 32 * Math.sin(s * 14) * Math.exp(-s * 6)   // задние проскакивают вперёд и успокаиваются
+      sq.style.transform = `translateX(${x}px)`
+    })
+  }
+})
+</script>
+  </div>
+
+  <div class="ex">
+    <h3>Тайминг</h3>
+    <p>Одно и то же движение за разное время ощущается разным по весу и характеру</p>
+    <p class="mute">По-английски Timing. Словами для ИИ «квадрат проходит путь за 250 мс, легко и резко. За 1000 мс тяжело и спокойно»</p>
+    <div class="ex-prompt">Добавь в ролик сцену по принципу «Тайминг» (Timing) из пакета «Ролик из HTML». Ниже готовый код. Поменяй объекты и текст под мой ролик, механику не трогай</div>
+    <button class="btn" data-copy>Скопировать для ИИ</button>
+    <script type="text/plain">
+// Принцип «Тайминг». Одно и то же движение за разное время ощущается разным по весу и характеру
+scene({
+  name: 'Тайминг',
+  dur: 2.6,
+  note: 'Три квадрата проходят одно расстояние за 250, 500 и 1000 мс',
+  html: [250, 500, 1000].map((ms, i) => `<div class="row" style="top: ${200 + i * 280}px"><span>${ms} мс</span><i></i></div>`).join(''),
+  css: `
+    .row { position: absolute; left: 160px; right: 160px; height: 140px; }
+    .row span { position: absolute; left: 0; top: -60px; font-size: 40px; opacity: 0.6; }
+    .row i { position: absolute; left: 0; top: 0; width: 140px; height: 140px; display: block; border-radius: 24px; background: var(--fg); }
+    .row:nth-child(2) i { background: var(--accent); }
+  `,
+  draw({ t, $$ }) {
+    $$('.row').forEach((row, i) => {
+      const d = [0.25, 0.5, 1][i]                              // длительность в секундах
+      row.querySelector('i').style.transform = `translateX(${1460 * R.ease.inOutCubic(R.prog(t, 0.5, d))}px)`
+    })
+  }
+})
+</script>
+  </div>
+
+</div>
+
+<h2>Источники</h2>
+<ul class="sources">
+  <li>Кривые easeOutCubic, easeInOutCubic, easeInOutQuint, easeOutBack Роберта Пеннера, <a href="https://easings.net/">easings.net</a> и <a href="http://robertpenner.com/easing/">robertpenner.com</a></li>
+  <li>Кривые ease-in, ease-out и ease-in-out из стандарта CSS, <a href="https://www.w3.org/TR/css-easing-1/">W3C</a></li>
+  <li>Длительности и кривые Material Design 3, <a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">m3.material.io</a></li>
+  <li>Длительности и кривые IBM Carbon, <a href="https://carbondesignsystem.com/elements/motion/overview/">carbondesignsystem.com</a></li>
+  <li>Движение в интерфейсах Apple, <a href="https://developer.apple.com/design/human-interface-guidelines/motion">Human Interface Guidelines</a></li>
+  <li>12 принципов анимации, O. Johnston, F. Thomas «The Illusion of Life: Disney Animation», 1981, <a href="https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation">Википедия</a></li>
+  <li>Монтажные переходы, <a href="https://www.studiobinder.com/blog/types-of-editing-transitions-in-film/">StudioBinder</a> и <a href="https://www.nyfa.edu/student-resources/a-beginners-guide-to-film-editing-vocabulary/">NYFA</a></li>
+  <li>J. Heer, G. Robertson «Animated Transitions in Statistical Data Graphics», IEEE InfoVis 2007, <a href="https://idl.uw.edu/papers/animated-transitions/">idl.uw.edu</a></li>
+</ul>
+
+<p class="mute" style="margin-top: 72px">Агент в папке берёт код отсюда сам. Напишите ему, например, «сделай сцену по приёму Счётчик из Приёмы движения.html»</p>
+
+</div>
+<script>
+'use strict'
+;(() => {
+const R = (() => {
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+  const mix = (a, b, k) => a + (b - a) * k
+  const prog = (t, start, dur) => dur > 0 ? clamp((t - start) / dur) : (t >= start ? 1 : 0)
+  // Кривая как cubic-bezier в CSS
+  function bezier(x1, y1, x2, y2) {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by
+    const fx = u => ((ax * u + bx) * u + cx) * u
+    const fy = u => ((ay * u + by) * u + cy) * u
+    const dx = u => (3 * ax * u + 2 * bx) * u + cx
+    return x => {
+      if (x <= 0) return 0
+      if (x >= 1) return 1
+      let u = x
+      for (let i = 0; i < 8; i++) {
+        const e = fx(u) - x
+        if (Math.abs(e) < 1e-7) return fy(u)
+        const d = dx(u)
+        if (Math.abs(d) < 1e-6) break
+        u -= e / d
+      }
+      let lo = 0, hi = 1
+      u = x
+      for (let i = 0; i < 50; i++) {
+        const v = fx(u)
+        if (Math.abs(v - x) < 1e-7) break
+        if (v < x) lo = u; else hi = u
+        u = (lo + hi) / 2
+      }
+      return fy(u)
+    }
+  }
+  const ease = {
+    linear: x => clamp(x),
+    in: bezier(0.42, 0, 1, 1),
+    out: bezier(0, 0, 0.58, 1),
+    inOut: bezier(0.42, 0, 0.58, 1),
+    outCubic: bezier(0.33, 1, 0.68, 1),
+    inOutCubic: bezier(0.65, 0, 0.35, 1),
+    inOutQuint: bezier(0.83, 0, 0.17, 1),    // дописывание слова в рекламе Apple
+    enter: bezier(0.094, 0.656, 0.383, 1),   // въезд первой строки в рекламе Apple
+  }
+  const snap = (t, fps = 24) => Math.floor(t * fps + 1e-6) / fps
+  // Ключи: R.keys(t, [[0, 0], [0.4, 1, R.ease.out], [1, 1]]). Значение числом или массивом чисел
+  function keys(t, list) {
+    if (!list || !list.length) return 0
+    if (t <= list[0][0]) return list[0][1]
+    for (let i = 1; i < list.length; i++) {
+      const [t1, v1, e] = list[i]
+      if (t <= t1) {
+        const [t0, v0] = list[i - 1]
+        const k = (e || ease.linear)(t1 > t0 ? (t - t0) / (t1 - t0) : 1)
+        return Array.isArray(v0) ? v0.map((a, j) => mix(a, v1[j], k)) : mix(v0, v1, k)
+      }
+    }
+    return list[list.length - 1][1]
+  }
+  // Случайное число от 0 до 1, одно и то же для одного номера
+  const rand = n => { const x = Math.sin((n + 1) * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x) }
+  return { clamp, mix, prog, bezier, ease, snap, keys, rand }
+})()
+window.R = R
+
+// ---------- Стили сцены действуют только внутри сцены ----------
+function splitSel(s) {
+  const out = []
+  let depth = 0, cur = ''
+  for (const ch of s) {
+    if (ch === '(' || ch === '[') depth++
+    else if (ch === ')' || ch === ']') depth--
+    if (ch === ',' && !depth) { out.push(cur); cur = '' } else cur += ch
+  }
+  out.push(cur)
+  return out
+}
+const ROOT_SEL = /^(?::root|html|body|:scope)(?![\w-])/
+function prefixSel(sel, root) {
+  return splitSel(sel).map(x => {
+    x = x.trim()
+    if (!ROOT_SEL.test(x)) return `${root} ${x}`
+    while (ROOT_SEL.test(x)) x = x.replace(ROOT_SEL, '').trim()
+    return x ? `${root} ${x}` : root
+  }).join(', ')
+}
+function scopeCss(css, root) {
+  const tmp = document.createElement('style')
+  tmp.media = 'not all'
+  tmp.textContent = css
+  document.head.append(tmp)
+  const walk = rules => [...rules].map(r => {
+    if (r instanceof CSSStyleRule) return prefixSel(r.selectorText, root) + r.cssText.slice(r.selectorText.length)
+    if (r.cssRules && !(r instanceof CSSKeyframesRule)) {
+      const head = r.cssText.slice(0, r.cssText.indexOf('{'))
+      return `${head}{\n${walk(r.cssRules)}\n}`
+    }
+    return r.cssText
+  }).join('\n')
+  let out = ''
+  try { out = walk(tmp.sheet.cssRules) } catch (e) { out = '' }
+  tmp.remove()
+  return out
+}
+
+
+// ---------- Живые примеры. Тот же договор сцены, что в Плеер.html ----------
+// Код примера лежит в <script type="text/plain"> рядом с кадром. Этот же текст копирует кнопка «Скопировать для ИИ»
+const NB = '\u00a0'
+const exAll = []
+let exUid = 0, exSpeed = 1
+
+function exLoad(code) {
+  const o = { width: 1920, height: 1080, css: [] }, list = []
+  const reel = (r = {}) => {
+    if (+r.width > 0) o.width = +r.width
+    if (+r.height > 0) o.height = +r.height
+    if (r.css) o.css.push(String(r.css))
+  }
+  const scene = d => { list.push(d); return d }
+  new Function('scene', 'reel', 'R', code)(scene, reel, R)
+  return { o, list }
+}
+
+function exMount(box, code) {
+  const id = 'x' + (++exUid)
+  const ex = { box, code, scenes: [], total: 0, cur: -1, T: 0, t0: performance.now(), paused: false, seen: false }
+  const frame = document.createElement('div'), stage = document.createElement('div')
+  const bar = document.createElement('i'), err = document.createElement('pre')
+  frame.className = 'ex-frame'; stage.className = 'ex-stage'; bar.className = 'ex-bar'; err.className = 'ex-err'
+  stage.dataset.ex = id
+  frame.append(stage, bar, err)
+  box.prepend(frame)
+  Object.assign(ex, { frame, stage, bar, err })
+  try {
+    const { o, list } = exLoad(code)
+    ex.o = o
+    stage.style.width = o.width + 'px'
+    stage.style.height = o.height + 'px'
+    const css = o.css.map(c => scopeCss(c, `[data-ex="${id}"]`))
+    list.forEach((d, i) => {
+      const s = { name: String(d.name || ''), dur: +d.dur, draw: d.draw, start: ex.total }
+      ex.total += s.dur
+      s.slot = document.createElement('div')
+      s.slot.className = 'ex-slot'
+      s.el = document.createElement('div')
+      s.el.className = 'ex-scene'
+      s.el.dataset.s = `${id}-${i}`
+      s.el.innerHTML = d.html || ''
+      s.slot.append(s.el)
+      stage.append(s.slot)
+      s.$ = q => s.el.querySelector(q)
+      s.$$ = q => [...s.el.querySelectorAll(q)]
+      if (d.css) css.push(scopeCss(String(d.css), `[data-s="${id}-${i}"]`))
+      ex.scenes.push(s)
+    })
+    const st = document.createElement('style')
+    st.textContent = css.join('\n')
+    document.head.append(st)
+  } catch (e) { ex.error = e.message }
+  frame.addEventListener('click', () => {
+    ex.paused = !ex.paused
+    if (!ex.paused) ex.t0 = performance.now() - ex.T * 1000 / exSpeed
+    frame.classList.toggle('ex-paused', ex.paused)
+  })
+  new ResizeObserver(() => exFit(ex)).observe(box)
+  exSeen.observe(frame)
+  exFit(ex)
+  exDraw(ex, 0)
+  exAll.push(ex)
+  return ex
+}
+
+function exFit(ex) {
+  if (!ex.o) return
+  const W = ex.o.width, H = ex.o.height
+  const k = Math.min(ex.box.clientWidth / W, (H > W ? 560 : 1e9) / H)
+  ex.frame.style.width = W * k + 'px'
+  ex.frame.style.height = H * k + 'px'
+  ex.stage.style.transform = `scale(${k})`
+}
+
+function exDraw(ex, T) {
+  if (ex.error || !ex.scenes.length) {
+    ex.err.textContent = ex.error || ''
+    ex.err.classList.toggle('on', !!ex.error)
+    return
+  }
+  let i = ex.scenes.findIndex(s => T < s.start + s.dur)
+  if (i < 0) i = ex.scenes.length - 1
+  const s = ex.scenes[i]
+  if (i !== ex.cur) {
+    if (ex.scenes[ex.cur]) ex.scenes[ex.cur].slot.classList.remove('on')
+    s.slot.classList.add('on')
+    ex.cur = i
+  }
+  const t = Math.min(s.dur, Math.max(0, T - s.start))
+  try {
+    if (s.draw) s.draw({ t, p: t / s.dur, dur: s.dur, T, el: s.el, $: s.$, $$: s.$$, w: ex.o.width, h: ex.o.height })
+  } catch (e) {
+    ex.error = `Сцена «${s.name}»: ${e.message}`
+    exDraw(ex, T)
+  }
+  ex.bar.style.width = (T / ex.total * 100) + '%'
+}
+
+const exSeen = new IntersectionObserver(list => {
+  for (const e of list) {
+    const ex = exAll.find(x => x.frame === e.target)
+    if (ex) ex.seen = e.isIntersecting
+  }
+}, { rootMargin: '100px' })
+
+function exTick(now) {
+  for (const ex of exAll) {
+    if (!ex.seen || ex.paused || !ex.total || ex.error) continue
+    ex.T = ((now - ex.t0) / 1000 * exSpeed) % ex.total
+    exDraw(ex, ex.T)
+  }
+  requestAnimationFrame(exTick)
+}
+
+function exSetSpeed(v) {
+  const now = performance.now()
+  for (const ex of exAll) ex.t0 = now - ex.T * 1000 / v
+  exSpeed = v
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true } catch (e) {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    document.body.append(ta)
+    ta.select()
+    let ok = false
+    try { ok = document.execCommand('copy') } catch (e2) { ok = false }
+    ta.remove()
+    return ok
+  }
+}
+
+// Неразрывный пробел после однобуквенных слов в тексте страницы. Код примеров не трогаем
+function typograph(root) {
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => n.parentElement.closest('script, style, code, pre, textarea') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+  })
+  const re = /(^|[\s(«])([АаВвИиКкОоСсУуЯ]) /g
+  for (let n; (n = walk.nextNode());) {
+    const v = n.nodeValue.replace(re, `$1$2${NB}`).replace(re, `$1$2${NB}`)
+    if (v !== n.nodeValue) n.nodeValue = v
+  }
+}
+
+async function copyWithNote(btn, text) {
+  const ok = await copyText(text)
+  const was = btn.textContent
+  btn.textContent = ok ? 'Скопировано' : 'Не получилось, выделите текст и скопируйте руками'
+  setTimeout(() => { btn.textContent = was }, 1600)
+}
+
+// Каждый .ex на странице: кадр с примером, кнопки скорости и копирования.
+// Кнопка data-copy копирует подводку из .ex-prompt и код примера.
+// Кнопка data-copy-text="id" копирует текст элемента с этим id, например промт в <pre>
+function exInit() {
+  document.querySelectorAll('.ex').forEach(box => {
+    const src = box.querySelector('script[type="text/plain"]')
+    if (!src) return
+    const code = src.textContent.replace(/^\n+|\s+$/g, '')
+    exMount(box, code)
+    const btn = box.querySelector('[data-copy]')
+    if (btn) btn.addEventListener('click', () => {
+      const head = (box.querySelector('.ex-prompt') || {}).textContent || ''
+      copyWithNote(btn, (head.trim() ? head.trim() + '\n\n' : '') + '```js\n' + code + '\n```')
+    })
+  })
+  document.querySelectorAll('[data-copy-text]').forEach(btn => btn.addEventListener('click', () => {
+    const el = document.getElementById(btn.dataset.copyText)
+    if (el) copyWithNote(btn, el.textContent.trim())
+  }))
+  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => {
+    exSetSpeed(+b.dataset.speed)
+    document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x === b))
+  }))
+  typograph(document.body)
+  requestAnimationFrame(exTick)
+}
+
+// Для проверки из консоли: examples.seek(0, 1.5) ставит первый пример на паузу на 1,5 с
+window.examples = {
+  all: exAll,
+  mount: exMount,
+  seek(i, T) {
+    const ex = exAll[i]
+    ex.paused = true
+    ex.frame.classList.add('ex-paused')
+    ex.T = Math.min(ex.total - 1e-6, Math.max(0, T))
+    exDraw(ex, ex.T)
+  },
+}
+
+exInit()
+})()
+</script>
+</body>
+</html>
