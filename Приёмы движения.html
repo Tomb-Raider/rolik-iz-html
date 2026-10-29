@@ -668,47 +668,6 @@ scene({
   </div>
 
   <div class="ex">
-    <h3>Шторка из кругов</h3>
-    <p>Круги растут по сетке от центра, закрывают кадр, под ними уже новая сцена</p>
-    <p class="mute">Словами для ИИ «круги цвета акцента растут от центра по сетке 12 на 7, каждый 800 мс, 120 мс задержки на клетку, после них новая сцена»</p>
-    <p class="mute">Не для стиля Apple, там только жёсткие склейки</p>
-    <div class="ex-prompt">Добавь в ролик переход по приёму «Шторка из кругов» из пакета «Ролик из HTML». Ниже готовый код. Поменяй то, что до и после шторки, и цвет кругов под мой ролик, механику не трогай</div>
-    <p class="src">Шторка особой формы, wipe with a specific shape (<a href="https://www.studiobinder.com/blog/what-is-a-wipe-transition-in-film/">StudioBinder</a>), с задержкой по сетке от центра (<a href="https://gsap.com/docs/v3/Staggers/">GSAP</a>)</p>
-    <button class="btn" data-copy>Скопировать для ИИ</button>
-    <script type="text/plain">
-// Приём «Шторка из кругов». Круги цвета акцента растут по сетке от центра, закрывают кадр, под ними уже новая сцена
-const DOTS_COLS = 12, DOTS_ROWS = 7, DOTS_CELL = 160
-
-scene({
-  name: 'Шторка из кругов',
-  dur: 3.6,
-  note: 'Круги растут от центра с задержкой 120 мс на клетку, закрывают «Было», после них «Стало» на цвете акцента',
-  html: `<div class="t a">Было</div><div class="g">${'<i></i>'.repeat(DOTS_COLS * DOTS_ROWS)}</div><div class="t b">Стало</div>`,
-  css: `
-    .t { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-         font-weight: 700; font-size: 200px; letter-spacing: -0.03em; }
-    .b { background: var(--accent); }
-    .g { position: absolute; left: 0; top: -20px; display: grid; grid-template-columns: repeat(${DOTS_COLS}, ${DOTS_CELL}px);
-         grid-auto-rows: ${DOTS_CELL}px; place-items: center; }
-    .g i { display: block; width: ${DOTS_CELL * 1.5}px; height: ${DOTS_CELL * 1.5}px; flex: none; border-radius: 50%; background: var(--accent); }
-  `,
-  draw({ t, $, $$ }) {
-    const cx = (DOTS_COLS - 1) / 2, cy = (DOTS_ROWS - 1) / 2
-    $$('.g i').forEach((dot, n) => {
-      const d = Math.hypot(n % DOTS_COLS - cx, Math.floor(n / DOTS_COLS) - cy)
-      const k = R.ease.outCubic(R.prog(t, 0.6 + d * 0.12, 0.8))   // круг растёт 800 мс, 120 мс задержки на клетку
-      dot.style.transform = `scale(${k})`
-    })
-    const covered = t >= 2.2                                        // все круги выросли, кадр закрыт
-    $('.g').style.display = covered ? 'none' : ''
-    $('.a').style.display = covered ? 'none' : ''
-    $('.b').style.display = covered ? '' : 'none'
-  }
-})
-</script>
-  </div>
-
-  <div class="ex">
     <h3>Монтаж по форме</h3>
     <p>Точка вырастает в круг, склейка, круг остаётся на месте и того же размера, но вокруг уже другая картинка</p>
     <p class="mute">Словами для ИИ «точка после слова за 800 мс вырастает в круг по центру, склейка, круг на том же месте становится кнопкой пуска на белом фоне»</p>
