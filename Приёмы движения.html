@@ -5,16 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Приёмы движения</title>
 <style>
-/* Страницы пакета «Ролик из HTML». Цвета как у плеера */
+/* Страницы пакета «Ролик из HTML». Фон чёрный, шрифты SB Sans: текст SB Sans Text, заголовки SB Sans Display Extended.
+   Файлов шрифтов на сайте нет, берутся установленные на компьютере. Где их нет, показывается системный шрифт */
+@font-face { font-family: "SB Sans Text"; font-weight: 400; src: local("SBSansText-Regular"), local("SB Sans Text Regular"); }
+@font-face { font-family: "SB Sans Text"; font-weight: 500; src: local("SBSansText-Medium"), local("SB Sans Text Medium"); }
+@font-face { font-family: "SB Sans Text"; font-weight: 600; src: local("SBSansText-Semibold"), local("SB Sans Text Semibold"); }
+@font-face { font-family: "SB Sans Display Extended"; font-weight: 600; src: local("SBSansDisplay-ExtendedSemibold"), local("SB Sans Display Extended Semibold"); }
 :root {
-  --ui-bg: #121316; --ui-fg: #ECECEE; --ui-mute: #86878D; --ui-line: #232428; --ui-line2: #393A40;
+  --ui-bg: #000000; --ui-fg: #ECECEE; --ui-mute: #86878D; --ui-line: #232428; --ui-line2: #393A40;
   --ui-ok: #7FD49B; --ui-bad: #FFB4AA;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 html { background: var(--ui-bg); color: var(--ui-fg); }
 body {
   margin: 0; background: var(--ui-bg); color: var(--ui-fg);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font: 16px/1.55 "SB Sans Text", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 .page { max-width: 1120px; margin: 0 auto; padding: 28px 24px 120px; }
@@ -26,8 +31,9 @@ body {
 .nav { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-bottom: 72px; font-size: 14px; }
 .nav a { color: var(--ui-mute); text-decoration: none; }
 .nav a:hover, .nav a.on { color: var(--ui-fg); }
-h1 { margin: 0 0 18px; font-size: 48px; line-height: 1.08; font-weight: 650; letter-spacing: -0.02em; }
-h2 { margin: 96px 0 14px; font-size: 30px; line-height: 1.15; font-weight: 620; letter-spacing: -0.01em; }
+h1, h2 { font-family: "SB Sans Display Extended", "SB Sans Text", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-weight: 600; }
+h1 { margin: 0 0 18px; font-size: 46px; line-height: 1.1; letter-spacing: 0; }
+h2 { margin: 96px 0 14px; font-size: 28px; line-height: 1.2; letter-spacing: 0; }
 h3 { margin: 0 0 6px; font-size: 19px; line-height: 1.3; font-weight: 600; }
 p, li { max-width: 740px; }
 p { margin: 0 0 14px; }
@@ -130,6 +136,26 @@ pre.prompt {
 // Пресет «Короткие фразы как в рекламе Apple». Числа сняты покадрово с референса, не меняй их
 const FPS = 24, F = 1 / FPS
 
+// Одна строка пресета в момент lt от её начала. Ею же собирай свои сцены, где рядом с фразой своя графика
+function phraseAt(line, lt, { life = 1.2, first = 0.43, punch = true, enter = false, w = 1920 } = {}) {
+  const add = line.lastElementChild, word = add.firstElementChild
+  add.style.width = word.offsetWidth * R.ease.inOutQuint(R.prog(lt, first, 0.25)) + 'px'  // дописывание 250 мс
+  add.style.overflow = lt >= first + 0.25 ? 'visible' : 'hidden'     // дописали, дальше ничего не обрезаем
+  word.style.visibility = lt >= first + 0.167 ? 'visible' : 'hidden'  // слово возникает за 83 мс до остановки
+  let s = 1 - 0.15 * Math.min(1, 1.2 / life) * lt           // отъезд 15 % в секунду, за жизнь строки не больше 18 %
+  if (lt >= life - 2 * F) s -= lt >= life - F ? 0.03 : 0.01 // разгон перед склейкой
+  if (punch) s *= 1 + 0.05 * (1 - R.ease.out(R.prog(lt, 0, 0.06)))  // удар +5 % на склейке
+  const x = enter ? -0.15 * w * (1 - R.ease.enter(R.prog(lt, 0, 0.417))) : 0  // въезд слева
+  line.style.transform = `translateX(${x}px) scale(${s})`
+}
+
+const PHRASE_CSS = `
+  .line { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+          font-weight: 700; font-size: 154px; line-height: 1.25; letter-spacing: -0.015em; white-space: nowrap; }
+  .add { display: flex; justify-content: flex-end; overflow: hidden; }
+  .add > span { flex: none; }
+`
+
 function phrases(name, lines, { life = 1.2, first = 0.43, enter = true } = {}) {
   return {
     name,
@@ -137,27 +163,13 @@ function phrases(name, lines, { life = 1.2, first = 0.43, enter = true } = {}) {
     note: lines.map(l => l.join(' ')).join(' / '),
     html: lines.map(([a, b]) =>
       `<div class="line"><span>${a}</span><span class="add"><span>&nbsp;${b}</span></span></div>`).join(''),
-    css: `
-      .line { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-              font-weight: 700; font-size: 154px; line-height: 1.25; letter-spacing: -0.015em; white-space: nowrap; }
-      .add { display: flex; justify-content: flex-end; overflow: hidden; }
-      .add > span { flex: none; }
-    `,
+    css: PHRASE_CSS,
     draw({ t, $$, w }) {
       t = R.snap(t, FPS)                                          // рубленая сетка 24 кадра в секунду
       const k = Math.min(lines.length - 1, Math.floor(t / life))  // какая строка сейчас
       $$('.line').forEach((line, i) => {
         line.style.display = i === k ? '' : 'none'               // склейка: кадр старой строки, следующий кадр новой
-        if (i !== k) return
-        const lt = t - k * life                                   // время внутри строки
-        const add = line.lastElementChild, word = add.firstElementChild
-        add.style.width = word.offsetWidth * R.ease.inOutQuint(R.prog(lt, first, 0.25)) + 'px'  // дописывание 250 мс
-        word.style.visibility = lt >= first + 0.167 ? 'visible' : 'hidden'  // слово возникает за 83 мс до остановки
-        let s = 1 - 0.15 * lt                                     // непрерывный отъезд, -15 % в секунду
-        if (lt >= life - 2 * F) s -= lt >= life - F ? 0.03 : 0.01 // разгон перед склейкой
-        if (k > 0 || !enter) s *= 1 + 0.05 * (1 - R.ease.out(R.prog(lt, 0, 0.06)))  // удар +5 % на склейке
-        const x = k === 0 && enter ? -0.15 * w * (1 - R.ease.enter(R.prog(lt, 0, 0.417))) : 0  // въезд слева
-        line.style.transform = `translateX(${x}px) scale(${s})`
+        if (i === k) phraseAt(line, t - k * life, { life, first, punch: k > 0 || !enter, enter: k === 0 && enter, w })
       })
     }
   }
@@ -330,25 +342,28 @@ scene(fly('Число', '<b>24</b> кадра в секунду', { size: 140, t
   <div class="ex">
     <h3>Печать по букве</h3>
     <p>Фраза набирается по букве, каретка мигает</p>
-    <p class="mute">Словами для ИИ «фраза набирается по букве каждые 70 мс, каретка цвета акцента мигает раз в 0,5 с»</p>
+    <p class="mute">Словами для ИИ «фраза набирается по букве за первую половину сцены, буква каждые 70 мс, но если не успевает, чаще, до 40 мс; каретка цвета акцента мигает раз в 0,5 с»</p>
     <div class="ex-prompt">Добавь в ролик сцену по приёму «Печать по букве» из пакета «Ролик из HTML». Ниже готовый код. Поменяй текст и длительность под мой ролик, механику не трогай</div>
     <p class="src">По-английски typewriter. Описан в GSAP TextPlugin (<a href="https://gsap.com/docs/v3/Plugins/TextPlugin/">GSAP</a>), в After Effects есть такой пресет (<a href="https://www.adobe.com/learn/after-effects/web/the-unlock-how-to-create-a-typewriter-effect-in-after-effects">Adobe</a>)</p>
     <button class="btn" data-copy>Скопировать для ИИ</button>
     <script type="text/plain">
-// Приём «Печать по букве». Каретка мигает от времени t, а не CSS-анимацией
+// Приём «Печать по букве». Каретка мигает от времени t, а не CSS-анимацией.
+// Главное длина сцены: текст набирается за первую половину сцены. Буква каждые 70 мс, если не успевает, чаще,
+// но не чаще одной в 40 мс. Если и так не успевает, удлини сцену. Длинную строку уменьши кеглем, чтобы она встала в отступы 96 px
 scene({
   name: 'Печать',
   dur: 2.4,
-  note: 'Фраза набирается по букве каждые 70 мс, каретка цвета акцента',
+  note: 'Фраза набирается по букве за первую половину сцены, каретка цвета акцента',
   html: `<div class="c"><span class="txt"></span><i class="caret"></i></div>`,
   css: `
     .c { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
          font-weight: 700; font-size: 140px; letter-spacing: -0.02em; white-space: pre; }
     .caret { display: block; width: 0.07em; height: 0.78em; margin-left: 0.05em; background: var(--accent); }
   `,
-  draw({ t, $ }) {
+  draw({ t, $, dur }) {
     const text = 'Напишите что угодно'
-    const n = Math.min(text.length, Math.floor(R.snap(t, 24) / 0.07))  // буква каждые 70 мс
+    const step = R.clamp(dur / 2 / text.length, 0.04, 0.07)              // секунд на букву
+    const n = Math.min(text.length, Math.floor(R.snap(t, 24) / step))
     $('.txt').textContent = text.slice(0, n)
     const blink = Math.floor(t / 0.5) % 2 === 0                         // мигание раз в 0,5 с
     $('.caret').style.visibility = n < text.length || blink ? 'visible' : 'hidden'
