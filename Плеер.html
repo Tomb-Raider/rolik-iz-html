@@ -12,7 +12,7 @@ body {
   font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   --ui-bg: #121316; --ui-fg: #ECECEE; --ui-mute: #86878D; --ui-line: #232428; --ui-line2: #393A40;
-  --ui-hi: #FFFFFF; --ui-rec: #FF4D3D; --ui-pop: #1B1C20; --pad: 24px;
+  --ui-hi: #FFFFFF; --ui-rec: #FF4D3D; --ui-pop: #1B1C20; --ui-sel: #4C8DFF; --pad: 24px;
 }
 
 /* Сверху название и кнопки, в середине кадр, снизу управление, таймлайн из блоков сцен и клавиши */
@@ -135,6 +135,28 @@ body.p-recording .p-view { cursor: none; }
 .p-grow { flex: 1; }
 .p-btn.p-primary { background: var(--ui-fg); color: var(--ui-bg); padding: 8px 14px; }
 .p-btn.p-primary:hover { opacity: .9; }
+.p-btn[disabled] { opacity: .35; cursor: default; }
+
+/* Правки в кадре: рамки, сетка и путь движения рисуются поверх кадра, в сам ролик не попадают */
+.p-ov { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.p-ov[hidden], .p-keys[hidden], .p-editbar[hidden] { display: none; }
+.p-ov svg { position: absolute; overflow: visible; }
+.p-selbox, .p-hovbox { position: absolute; display: none; }
+.p-selbox { outline: 1.5px solid var(--ui-sel); }
+.p-selbox.p-text { outline: 1.5px dashed var(--ui-sel); outline-offset: 4px; }
+.p-selbox.p-text .p-handle { display: none; }
+.p-hovbox { outline: 1px solid rgba(76, 141, 255, .7); }
+.p-handle { position: absolute; right: -6px; bottom: -6px; width: 11px; height: 11px; box-sizing: border-box; background: #fff; border: 1.5px solid var(--ui-sel); pointer-events: auto; cursor: nwse-resize; }
+.p-dim { position: absolute; display: none; padding: 4px 6px; border-radius: 4px; background: var(--ui-sel); color: #fff; font-size: 11px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.p-note { position: absolute; display: none; width: 320px; max-width: calc(100% - 16px); pointer-events: auto; }
+.p-note input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #E0C400; border-radius: 8px; background: var(--ui-pop); color: var(--ui-fg); font: inherit; outline: none; }
+.p-grabbing, .p-grabbing * { cursor: grabbing !important; }
+.p-stage [data-p-edit] { cursor: text; -webkit-user-select: text; user-select: text; outline: none; }
+.p-marks { position: absolute; left: 0; right: 0; top: 26px; height: 7px; pointer-events: none; }
+.p-mark { position: absolute; top: 0; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--ui-sel); pointer-events: auto; cursor: pointer; }
+.p-mark.p-mark-note { background: #E0C400; }
+.p-editbar { grid-area: keys; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 0 10px 10px; }
+.p-editbar .p-hints { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-left: 14px; color: var(--ui-mute); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -262,6 +284,7 @@ scene({
   <div class="p-title"><b></b><span></span></div>
   <div class="p-actions">
     <button class="p-btn" data-act="code" title="Вставить код сцен из чата">Код</button>
+    <button class="p-btn" data-act="edit" title="На паузе двигать объекты, менять размер и править текст прямо в кадре. Правки уходят ИИ через «Для ИИ»" aria-pressed="false">Правки</button>
     <button class="p-btn" data-act="ask" title="Скопировать запрос на правку этой сцены для ИИ">Для&nbsp;ИИ</button>
     <button class="p-btn" data-act="link" title="Плеер сам сохраняет изменения в файл и сам показывает правки ИИ в нём" hidden>Связать с&nbsp;файлом</button>
     <span class="p-linked" hidden></span>
@@ -275,13 +298,20 @@ scene({
       <div class="p-empty">Здесь будет ролик<br>Нажмите «Код» и&nbsp;вставьте код сцен из&nbsp;чата</div>
       <div class="p-err"></div>
     </div>
+    <div class="p-ov" hidden>
+      <svg></svg>
+      <div class="p-hovbox"></div>
+      <div class="p-selbox"><span class="p-handle" title="Тяните, чтобы поменять размер"></span></div>
+      <div class="p-dim"></div>
+      <div class="p-note"><input placeholder="Что здесь не так" aria-label="Замечание"></div>
+    </div>
   </div>
   <div class="p-transport">
     <button class="p-btn p-play" data-act="play" title="Пуск и пауза, пробел"></button>
     <div class="p-clock"><input value="0,00" title="Впишите время и нажмите Enter" aria-label="Время"><span class="p-total">/ 0,00</span></div>
     <div class="p-now"><b></b><span></span></div>
   </div>
-  <div class="p-timeline"><div class="p-ruler"></div><div class="p-blocks"></div><div class="p-ghost"><i></i></div><div class="p-head"></div></div>
+  <div class="p-timeline"><div class="p-ruler"></div><div class="p-blocks"></div><div class="p-marks"></div><div class="p-ghost"><i></i></div><div class="p-head"></div></div>
   <div class="p-modes">
     <span class="p-cap" title="Длина сцены кратна шагу, когда тянете край сцены">Шаг</span>
     <button class="p-btn" data-grid="0.5" title="Длина сцены кратна 0,5 с">0,5&nbsp;с</button>
@@ -296,6 +326,18 @@ scene({
     <button class="p-btn" data-act="loop" title="Крутить одну сцену, клавиша L">Повтор сцены</button>
   </div>
   <div class="p-keys"><span>Пробел пуск</span><span>← → кадр</span><span>Shift и&nbsp;← → секунда</span><span>↑ ↓ сцена</span><span>L повтор сцены</span><span>1 2 3 скорость</span><span>Край сцены тяните, чтобы изменить длину</span></div>
+  <div class="p-editbar" hidden>
+    <span class="p-cap" title="Как сдвиг ложится на объект, который движется в сцене">Путь</span>
+    <button class="p-btn" data-mode="all" title="Весь путь движения переезжает на новое место">Весь путь</button>
+    <button class="p-btn" data-mode="from" title="Начало движения как было, к этому моменту объект приходит на новое место и дальше остаётся там">Начало как было</button>
+    <button class="p-btn" data-mode="only" title="Новое место только в этот момент, начало и конец движения как были">Начало и&nbsp;конец как были</button>
+    <span class="p-sep"></span>
+    <button class="p-btn" data-act="grid" title="Центр кадра, трети и поля 96 px от края. Края и центры прилипают к ним">Сетка</button>
+    <button class="p-btn" data-act="undo" title="Назад, Cmd или Ctrl + Z" disabled>Назад</button>
+    <button class="p-btn" data-act="redo" title="Вперёд, Shift + Cmd или Ctrl + Z" disabled>Вперёд</button>
+    <button class="p-btn" data-act="clear" title="Убрать все правки из плеера">Убрать правки</button>
+    <span class="p-hints"><span>Тяните объект</span><span>Двойной щелчок правит текст</span><span>Alt + щелчок замечание</span><span>Стрелки двигают выбранное</span><span>Delete убирает правку</span></span>
+  </div>
 </div>
 
 <div class="p-status"></div>
@@ -588,7 +630,10 @@ function mount(res) {
   buildTimeline()
   retime()
   fit()
+  forgetFrame()
+  settledNow = settleEdits()
   render()
+  if (settledNow) say(settledNote())
 }
 
 // Начала сцен и общая длина по текущим длинам сцен
@@ -625,7 +670,8 @@ function render() {
   }
   const local = Math.min(s.len, Math.max(0, T - s.start))   // время сцены в ролике
   const t = local * s.dur / s.len                            // время сцены по её коду, от 0 до dur
-  if (s.draw) {
+  // Пока правится текст, который ставит код, кадр не перерисовываем: иначе draw() затрёт набранное
+  if (s.draw && !(textEdit && textEdit.owned && s.el.contains(textEdit.el))) {
     try {
       s.draw({ t, p: local / s.len, dur: s.dur, T, el: s.el, $: s.$, $$: s.$$, w: opts.width, h: opts.height })
       s.error = null
@@ -634,9 +680,11 @@ function render() {
       s.error = `Сцена «${s.name}»: ${e.message}${ln ? ` (строка ${ln})` : ''}${hint(e.message)}\nПерешлите этот текст в${NB}чат ИИ, он поправит сцену`
     }
   }
+  applyEdits(s, t)
   errBox.textContent = s.error || fileError
   errBox.classList.toggle('p-on', !!(s.error || fileError))
   updateUI(i, local)
+  paintEdit()
 }
 
 function seek(x) {
@@ -742,6 +790,7 @@ function layoutTimeline() {
     html += `<span class="p-tick${major ? ' p-major' : ''}" style="left:${x / vt * 100}%">${major ? `<i>${short(x)}</i>` : ''}</span>`
   }
   ruler.innerHTML = html
+  buildMarks()
 }
 new ResizeObserver(() => layoutTimeline()).observe(timeline)
 
@@ -793,6 +842,7 @@ function fit() {
   frame.style.width = W * k + 'px'
   frame.style.height = H * k + 'px'
   stage.style.transform = `scale(${k})`
+  paintEdit()
 }
 new ResizeObserver(fit).observe(view)
 
@@ -831,6 +881,8 @@ function startResize(e, i) {
 }
 timeline.addEventListener('pointerdown', e => {
   if (!scenes.length) return
+  const mark = e.target.closest('.p-mark')
+  if (mark) { pause(); goToEdit(mark.dataset.key); return }
   timeline.setPointerCapture(e.pointerId)
   pause()
   const grip = e.target.closest('.p-grip')
@@ -872,6 +924,12 @@ document.addEventListener('click', e => {
   else if (b.dataset.act === 'link') linkFile(stored)
   else if (b.dataset.act === 'ask') openAsk()
   else if (b.dataset.act === 'rec') startRec()
+  else if (b.dataset.act === 'edit') setEdit(!editOn)
+  else if (b.dataset.act === 'grid') { gridOn = !gridOn; paintModes(); paintEdit() }
+  else if (b.dataset.act === 'undo') undo()
+  else if (b.dataset.act === 'redo') redo()
+  else if (b.dataset.act === 'clear') clearEdits()
+  else if (b.dataset.mode) setMode(b.dataset.mode)
   if (e.detail) b.blur()
 })
 
@@ -926,6 +984,8 @@ async function startRec() {
   const r = document.documentElement
   try { await (r.requestFullscreen ? r.requestFullscreen({ navigationUI: 'hide' }) : r.webkitRequestFullscreen()) } catch (e) { /* без полного экрана тоже работает */ }
   fit()
+  const n = liveRecs().length
+  if (n) say(`В${NB}кадре правки, которых ещё нет в${NB}коде: ${n}. Они попадут в${NB}запись`)
 }
 const fullEl = () => document.fullscreenElement || document.webkitFullscreenElement
 function recPlay() {
@@ -1006,6 +1066,7 @@ function apply(raw, mode) {
     if (added.length) parts.push((added.length > 1 ? 'добавлены ' : 'добавлена ') + added.map(n => `«${n}»`).join(', '))
     if (!touched.length) parts.push('настройки ролика обновлены')
   }
+  if (settledNow) parts.push(settledNote().toLowerCase())
   say(parts.join(', ').replace(/^./, c => c.toUpperCase()))
   const first = scenes.find(s => s.name === touched[0])
   T = first ? first.start : 0
@@ -1157,7 +1218,7 @@ async function watch() {
     if (text === link.text || syncing) return
     link.text = text
     const block = blockOf(text)
-    if (block != null && block.trim() !== codeText().trim() && adopt(block)) say(`Обновлено из${NB}${link.name}`)
+    if (block != null && block.trim() !== codeText().trim() && adopt(block)) say(`Обновлено из${NB}${link.name}${settledNow ? ', ' + settledNote().toLowerCase() : ''}`)
   } catch (e) { lost() }
 }
 setInterval(watch, 1000)
@@ -1232,20 +1293,36 @@ function askText() {
   if (!s) return ''
   const local = Math.min(s.len, Math.max(0, T - s.start)), t = local * s.dur / s.len
   const stretched = Math.abs(s.len - s.dur) > 1e-6
-  const lines = [
-    `Поправь сцену «${s.name}»${link ? ` в файле ${link.name}` : ''} по инструкции «Ролик из HTML».`,
-    `Момент: ${fmt(local)} с от начала сцены${stretched ? `, в коде сцены это t = ${fmt(t)} (в плеере сцена растянута до ${short(s.len)} с)` : ''}.`,
-    `Что поправить: ${askWhat.value.trim() || '...'}`,
-    link ? 'Поправь сцену прямо в файле, остальные сцены не меняй.' : 'Пришли только эту сцену целиком, с тем же name. Остальные сцены не меняй.',
-  ]
-  if (askCode.checked) lines.push('', 'Текущий код, в нём эта сцена:', '```js', (s.src && s.src.code) || '', '```')
+  const what = askWhat.value.trim(), edits = editsText()
+  const moment = `${fmt(local)} с от начала сцены${stretched ? `, в коде сцены это t = ${fmt(t)} (в плеере сцена растянута до ${short(s.len)} с)` : ''}`
+  let lines
+  if (edits) {
+    // Правки из кадра и просьба словами одним запросом
+    lines = [`Поправь ролик${link ? ` в файле ${link.name}` : ''} по инструкции «Ролик из HTML»: внеси правки из плеера${what ? ' и просьбу словами' : ''}.`]
+    if (what) lines.push(`Просьба словами. Сцена «${s.name}», момент ${moment}: ${what}`)
+    lines.push('', edits, '', link ? 'Поправь сцены прямо в файле, остальное не меняй.' : 'Пришли изменённые сцены целиком, с теми же name. Остальные сцены не меняй.')
+  } else {
+    lines = [
+      `Поправь сцену «${s.name}»${link ? ` в файле ${link.name}` : ''} по инструкции «Ролик из HTML».`,
+      `Момент: ${moment}.`,
+      `Что поправить: ${what || '...'}`,
+      link ? 'Поправь сцену прямо в файле, остальные сцены не меняй.' : 'Пришли только эту сцену целиком, с тем же name. Остальные сцены не меняй.',
+    ]
+  }
+  if (askCode.checked) {
+    const touched = [s].concat(liveRecs().map(r => scenes.find(x => x.name === r.scene)).filter(Boolean))
+    const code = [...new Set(touched.map(x => x.src && x.src.code).filter(Boolean))]
+    lines.push('', code.length > 1 || edits ? 'Текущий код этих сцен:' : 'Текущий код, в нём эта сцена:', '```js', code.join('\n\n'), '```')
+  }
   return lines.join('\n')
 }
 function openAsk() {
   if (!scenes.length) return
   pause()
-  const s = scenes[indexAt(T)]
-  $('.p-where', ask).textContent = `Сцена «${s.name}», ${fmt(Math.min(s.len, T - s.start))} с из${NB}${fmt(s.len)}`
+  if (textEdit) endText()
+  const s = scenes[indexAt(T)], n = liveRecs().length
+  $('.p-where', ask).textContent = `Сцена «${s.name}», ${fmt(Math.min(s.len, T - s.start))} с из${NB}${fmt(s.len)}${n ? `. Правок из${NB}кадра: ${n}, они уже в${NB}запросе` : ''}`
+  askWhat.placeholder = n ? 'Что ещё поправить словами, если нужно' : 'Что поправить. Например, слово появляется раньше, чем нужно'
   askCode.checked = askCodeChoice == null ? !link : askCodeChoice
   askMsg.textContent = ''
   askPre.textContent = askText()
@@ -1270,7 +1347,7 @@ ask.addEventListener('click', e => { if (e.target === ask) ask.close() })
 $('form', ask).addEventListener('submit', async e => {
   if (!e.submitter || e.submitter.value !== 'copy') return
   e.preventDefault()
-  if (!askWhat.value.trim()) { askMsg.textContent = 'Напишите, что поправить'; askWhat.focus(); return }
+  if (!askWhat.value.trim() && !liveRecs().length) { askMsg.textContent = 'Напишите, что поправить'; askWhat.focus(); return }
   if (await copyText(askText())) {
     ask.close()
     askWhat.value = ''
@@ -1280,6 +1357,862 @@ $('form', ask).addEventListener('submit', async e => {
     getSelection().selectAllChildren(askPre)
   }
 })
+
+// ---------- Правки в кадре ----------
+// Кнопка «Правки» (или закладка «Режим правок»). На паузе объект сцены тянется мышью,
+// квадратик в углу меняет ширину, двойной щелчок правит текст, Alt + щелчок оставляет замечание.
+// Код сцен не меняется: правки хранятся в этом браузере, видны в кадре поверх кода
+// и уходят ИИ через «Для ИИ» со сценой и моментом t. Сдвиг и размер фигуры ставятся свойствами
+// translate и scale, поэтому не спорят с transform, который ставит draw()
+const ov = $('.p-ov'), ovSvg = $('svg', ov), selBox = $('.p-selbox'), hovBox = $('.p-hovbox'), dimBox = $('.p-dim')
+const handle = $('.p-handle'), noteBox = $('.p-note'), noteIn = $('input', noteBox)
+const EDIT_KEY = 'reel-edits:' + location.pathname
+const MODE_TEXT = {
+  all: 'весь путь движения',
+  from: 'начало движения как было, с этого момента на новом месте',
+  only: 'только в этот момент, начало и конец движения как были',
+}
+const SENT = '⁣'            // метка: по ней видно, ставит ли draw() текст сам
+let editOn = false, gridOn = false, sampling = false, defMode = 'all'
+let recs = loadRecs()            // ключ «сцена › путь» → правка
+let edSel = null, selInfo = null, edHov = null, edDrag = null, edSize = null, textEdit = null, noteFor = null, guides = []
+const edHist = { back: [], fwd: [], nudge: null, nudgeT: 0 }
+let settledNow = 0               // сколько правок нашлось уже внесёнными при последней сборке сцен
+const settledNote = () => `Уже в${NB}коде, убрано из${NB}правок: ${settledNow}`
+const styled = new Set()         // элементы, которым правки что-то поставили
+const elCache = new Map()
+
+function loadRecs() { try { return JSON.parse(localStorage.getItem(EDIT_KEY) || '{}') || {} } catch (e) { return {} } }
+function saveRecs() {
+  try { localStorage.setItem(EDIT_KEY, JSON.stringify(recs)) } catch (e) { /* без памяти правки живут до перезагрузки */ }
+  paintCount()
+  buildMarks()
+  paintModes()
+}
+
+const hasMove = r => !!(r.dx || r.dy)
+const hasSize = r => r.w != null && r.w0 != null && !!r.sz && Math.abs(r.w - r.w0) >= 1
+const hasText = r => r.after != null && r.after !== r.before
+const live = r => hasMove(r) || hasSize(r) || hasText(r) || !!(r.note && r.note.trim())
+const liveRecs = () => Object.values(recs).filter(live)
+const recsOf = s => Object.values(recs).filter(r => r.scene === s.name)
+const clean = s => String(s).replace(/[ \t\r\n]+/g, ' ').replace(/^ | $/g, '')   // неразрывный пробел не трогаем
+const forOut = s => s.replace(/ /g, '&nbsp;')
+const stageK = () => stage.getBoundingClientRect().width / (opts.width || 1920) || 1
+function sceneT() {
+  const s = scenes[cur]
+  return s ? Math.min(s.len, Math.max(0, T - s.start)) * s.dur / s.len : 0
+}
+
+// Адрес элемента внутри сцены по классам и номерам. Им элемент находится и после того, как ИИ пришлёт сцену заново
+function pathIn(root, el) {
+  const parts = []
+  for (let n = el; n && n !== root; n = n.parentElement) {
+    const p = n.parentElement, cls = [...n.classList].find(c => !/^p-/.test(c))
+    let q = n.tagName.toLowerCase() + (cls ? '.' + CSS.escape(cls) : '')
+    if (p && [...p.children].filter(k => k.matches(q)).length > 1) q += `:nth-child(${[...p.children].indexOf(n) + 1})`
+    parts.unshift(q)
+  }
+  return parts.join(' > ')
+}
+const keyOf = (s, el) => s.name + ' › ' + pathIn(s.el, el)
+function elOf(s, r) {
+  let el = elCache.get(r.key)
+  if (el && el.isConnected && s.el.contains(el)) return el
+  try { el = s.el.querySelector(':scope > ' + r.path) } catch (e) { el = null }
+  if (el) elCache.set(r.key, el)
+  return el
+}
+function labelOf(el) {
+  const t = clean(el.textContent || '')
+  if (t) return '«' + (t.length > 40 ? t.slice(0, 38) + '…' : t) + '»'
+  const cls = [...el.classList][0]
+  return '<' + el.tagName.toLowerCase() + (cls ? '.' + cls : '') + '>'
+}
+function ensureRec(s, el) {
+  const key = keyOf(s, el)
+  if (!recs[key]) recs[key] = { key, scene: s.name, path: pathIn(s.el, el), label: labelOf(el), t: sceneT(), dx: 0, dy: 0, k: 1, mode: defMode, before: null, after: null, note: '', snap: [] }
+  elCache.set(key, el)
+  return recs[key]
+}
+
+// Во весь кадр по раскладке, даже если draw его уменьшил или сдвинул. У SVG раскладки нет, там по рамке на экране
+const fullW = (el, r, sr) => el.offsetWidth != null ? el.offsetWidth >= (opts.width || 1920) * 0.95 : r.width >= sr.width * 0.95
+const fullH = (el, r, sr) => el.offsetHeight != null ? el.offsetHeight >= (opts.height || 1080) * 0.95 : r.height >= sr.height * 0.95
+// Что видно от элемента. Блок во весь кадр, например центрирующая обёртка, меряется по содержимому
+function vrect(el) {
+  const r = el.getBoundingClientRect(), sr = stage.getBoundingClientRect()
+  if ((!fullW(el, r, sr) && !fullH(el, r, sr)) || !el.firstChild) return r
+  const cs = getComputedStyle(el)
+  if (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' || cs.backgroundImage !== 'none' || parseFloat(cs.borderTopWidth) > 0) return r
+  const c = contentRect(el)
+  return c && c.width > 1 && c.height > 1 ? c : r
+}
+// Рамка того, что внутри видно: текст и мелкие элементы, обрезанные блоками с overflow
+function contentRect(el) {
+  let L = Infinity, Tp = Infinity, Rt = -Infinity, B = -Infinity
+  const rg = document.createRange()
+  const add = (r, from) => {
+    let l = r.left, t = r.top, rr = r.right, b = r.bottom
+    for (let a = from; a && a !== el.parentElement; a = a.parentElement) {
+      if (getComputedStyle(a).overflow !== 'visible') {
+        const q = a.getBoundingClientRect()
+        l = Math.max(l, q.left); t = Math.max(t, q.top); rr = Math.min(rr, q.right); b = Math.min(b, q.bottom)
+      }
+    }
+    if (rr - l < 0.5 || b - t < 0.5) return
+    L = Math.min(L, l); Tp = Math.min(Tp, t); Rt = Math.max(Rt, rr); B = Math.max(B, b)
+  }
+  const walk = n => {
+    for (const k of n.childNodes) {
+      if (k.nodeType === 3) {
+        if (!k.textContent.trim()) continue
+        rg.selectNodeContents(k)
+        add(rg.getBoundingClientRect(), n)
+      } else if (k.nodeType === 1) {
+        if (getComputedStyle(k).display === 'none') continue
+        if (k.children.length || ownText(k)) walk(k)
+        else add(k.getBoundingClientRect(), n)
+      }
+    }
+  }
+  walk(el)
+  return L < Rt ? new DOMRect(L, Tp, Rt - L, B - Tp) : null
+}
+const isFull = (r, sr) => r.width >= sr.width * 0.95 && r.height >= sr.height * 0.95
+const inRect = (r, x, y, pad = 4) => x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad
+const shown = el => { const cs = getComputedStyle(el); return cs.visibility !== 'hidden' && +cs.opacity > 0.02 }
+
+// Объекты сцены, как слои в Figma: верхние элементы сцены. Обёртку во весь кадр с несколькими
+// частями раскрываем, фон во весь кадр не двигаем
+function parts(s) {
+  const sr = stage.getBoundingClientRect(), out = []
+  const walk = el => {
+    for (const k of el.children) {
+      if (/^(SCRIPT|STYLE|TEMPLATE)$/.test(k.tagName)) continue
+      const r = k.getBoundingClientRect()
+      if (!r.width && !r.height) continue
+      const c = vrect(k)
+      if (fullW(k, r, sr) && fullH(k, r, sr) && k.children.length > 1 && c.width * c.height > sr.width * sr.height * 0.4) walk(k)
+      else if (!isFull(c, sr)) out.push(k)
+    }
+  }
+  walk(s.el)
+  return out
+}
+function objectAt(x, y) {
+  const s = scenes[cur]
+  if (!s) return null
+  const list = parts(s)
+  for (const h of document.elementsFromPoint(x, y)) {
+    if (!s.el.contains(h) || h === s.el) continue
+    const p = list.find(q => q.contains(h))
+    if (p && inRect(vrect(p), x, y)) return p
+  }
+  return null
+}
+// Двойной щелчок и Alt + Shift: самый мелкий элемент под курсором
+function deepAt(x, y) {
+  const s = scenes[cur], sr = stage.getBoundingClientRect()
+  if (!s) return null
+  for (let h of document.elementsFromPoint(x, y)) {
+    if (!s.el.contains(h) || h === s.el) continue
+    while (h.ownerSVGElement) h = h.ownerSVGElement
+    if (!isFull(vrect(h), sr)) return h
+  }
+  return null
+}
+const ownText = n => [...n.childNodes].some(c => c.nodeType === 3 && c.textContent.trim())
+function textAt(x, y) {
+  const s = scenes[cur]
+  if (!s) return null
+  for (const h of document.elementsFromPoint(x, y)) {
+    if (!s.el.contains(h)) continue
+    for (let n = h; n && n !== s.el; n = n.parentElement) if (ownText(n)) return n
+  }
+  const p = objectAt(x, y)
+  return p ? (ownText(p) ? p : [...p.querySelectorAll('*')].find(ownText) || null) : null
+}
+
+// Насколько сдвиг действует в момент t сцены, от 0 до 1
+function weight(r, t, dur) {
+  const m = r.moving ? r.mode || 'all' : 'all'
+  if (m === 'all') return 1
+  if (t >= r.t) return m === 'from' || dur - r.t < 1e-3 ? 1 : R.ease.inOut(R.clamp((dur - t) / (dur - r.t)))
+  return r.t < 1e-3 ? 1 : R.ease.inOut(R.clamp(t / r.t))
+}
+
+// Правки поверх кадра, который нарисовал draw()
+function applyEdits(s, t) {
+  if (sampling) return
+  const active = new Set()
+  for (const r of recsOf(s)) {
+    if (!live(r)) continue
+    const el = elOf(s, r)
+    if (!el) continue
+    active.add(el)
+    const st = el.style, w = weight(r, t, s.dur)
+    if (hasMove(r) || hasSize(r)) {
+      if (!styled.has(el)) { el._pDisp = st.display; styled.add(el) }
+      el._pMoved = true
+      if (getComputedStyle(el).display === 'inline') st.display = 'inline-block'   // у строчного элемента сдвиг и ширина не работают
+      st.translate = hasMove(r) ? `${r.dx * w}px ${r.dy * w}px` : ''
+      if (hasSize(r)) setSize(el, r); else clearSize(el)
+    } else if (el._pMoved) { st.translate = ''; clearSize(el); el._pMoved = false }
+    if (hasText(r)) {
+      styled.add(el)
+      if (!(textEdit && textEdit.el === el)) showText(el, r)
+    } else if (el._origHTML != null && !(textEdit && textEdit.el === el)) { el.innerHTML = el._origHTML; delete el._origHTML }
+  }
+  // Правку убрали: возвращаем элемент как было
+  for (const el of [...styled]) {
+    if (!el.isConnected) { styled.delete(el); continue }
+    if (active.has(el) || !s.el.contains(el)) continue
+    el.style.translate = ''
+    clearSize(el)
+    if (el._pDisp != null) { el.style.display = el._pDisp; delete el._pDisp }
+    if (el._origHTML != null) { el.innerHTML = el._origHTML; delete el._origHTML }
+    el._pMoved = false
+    styled.delete(el)
+  }
+}
+// Ширина. У блока с текстом меняется ширина, строки переносятся, буквы того же размера.
+// Фото и фигуры без текста меняют размер целиком, с теми же пропорциями
+const SIZE_PROPS = ['width', 'maxWidth', 'flex', 'whiteSpace', 'textAlign', 'marginLeft', 'marginRight', 'scale']
+function setSize(el, r) {
+  const st = el.style, z = r.sz
+  if (!el._pSize) el._pSize = Object.fromEntries(SIZE_PROPS.map(p => [p, st[p]]))
+  // Фото и фигура уменьшаются целиком, вместе со всем, что внутри: так вернее, чем размер блока
+  if (z.prop) { st.scale = String(r.w / r.w0); return }
+  // Блок шире своего текста (подпись во всю ширину кадра) меряется по тексту: ему ставим ширину текста
+  st.width = Math.max(8, z.full ? r.w : z.css + r.w - r.w0) + 'px'
+  st.maxWidth = 'none'
+  st.whiteSpace = 'normal'
+  if (z.align !== 'left') st.textAlign = z.align    // перенесённые строки встают так же, как стоял текст
+  if (z.flexKid) st.flex = '0 0 auto'
+  if (z.full && z.align !== 'left') { st.marginLeft = 'auto'; st.marginRight = z.align === 'center' ? 'auto' : st.marginRight }
+}
+function clearSize(el) {
+  if (!el._pSize) return
+  Object.assign(el.style, el._pSize)
+  delete el._pSize
+}
+// Как блок устроен до правки ширины: это нужно, чтобы ширина легла так же, как её потом поставит ИИ
+function sizeInfo(el) {
+  const cs = getComputedStyle(el), k = stageK(), box = el.getBoundingClientRect(), vis = vrect(el)
+  const flex = /flex/.test(cs.display), p = el.parentElement
+  const center = cs.textAlign === 'center' || (flex && cs.justifyContent === 'center')
+  const right = /right|end/.test(cs.textAlign) || (flex && /flex-end|end|right/.test(cs.justifyContent))
+  return {
+    sz: { css: parseFloat(cs.width) || box.width / k, full: box.width > vis.width + 4, align: center ? 'center' : right ? 'right' : 'left',
+          prop: !clean(el.textContent), flexKid: !!p && /flex/.test(getComputedStyle(p).display) },
+    w0: vis.width / k, h0: vis.height / k,
+  }
+}
+
+// Новый текст. Если код набирает текст по буквам, показываем ту же долю нового текста
+function showText(el, r) {
+  if (el._origHTML == null) el._origHTML = el.innerHTML
+  const now = clean(el.textContent), leaf = !el.children.length
+  if (now === r.after) return
+  if (now === r.before) {
+    if (leaf) el.textContent = r.after
+    else if (r.afterHTML) el.innerHTML = r.afterHTML
+  } else if (leaf && r.before && r.before.startsWith(now)) {
+    el.textContent = r.after.slice(0, Math.round(now.length / r.before.length * r.after.length))
+  }
+}
+
+// Прогнать draw() сцены по моментам, без правок. Так видно, как объект движется сам и чей текст ставит код
+function sampleScene(s, times, before, after) {
+  sampling = true
+  const was = s.slot.classList.contains('p-on')
+  s.slot.classList.add('p-on')
+  for (const el of styled) if (s.el.contains(el)) { el.style.translate = ''; clearSize(el) }
+  times.forEach((t, i) => {
+    if (before) before(t, i)
+    if (s.draw) {
+      try { s.draw({ t, p: t / s.dur, dur: s.dur, T: s.start + t * s.len / s.dur, el: s.el, $: s.$, $$: s.$$, w: opts.width, h: opts.height }) } catch (e) { /* ошибку покажет обычный кадр */ }
+    }
+    after(t, i)
+  })
+  if (!was) s.slot.classList.remove('p-on')
+  sampling = false
+}
+const steps = (s, n = 40) => Array.from({ length: n + 1 }, (_, j) => s.dur * j / n)
+function centerOf(el, s) {
+  const r = vrect(el)
+  if (!r.width && !r.height) return null
+  const sr = s.el.getBoundingClientRect(), k = sr.width / opts.width || 1
+  return [(r.left + r.width / 2 - sr.left) / k, (r.top + r.height / 2 - sr.top) / k, r.width / k, el.getBoundingClientRect().width / k]
+}
+function probeMotion(s, el) {
+  const times = steps(s), t = sceneT(), pts = []
+  let nat = null
+  sampleScene(s, times.concat(t), null, (tt, i) => {
+    const c = centerOf(el, s)
+    if (i === times.length) nat = c
+    else if (c) pts.push([tt, c[0], c[1]])
+  })
+  const xs = pts.map(p => p[1]), ys = pts.map(p => p[2])
+  // Дрожание на несколько пикселей (каретка, высота строки при наборе) движением не считаем
+  const moving = pts.length > 1 && Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) > 12
+  render()
+  return { el, s, t, pts, moving, nat: nat || [0, 0, 0] }
+}
+function probeText(s, el) {
+  const html = el.innerHTML, leaf = !el.children.length, texts = []
+  let owned = false
+  sampleScene(s, steps(s, 24), () => { if (leaf) el.textContent = SENT }, () => {
+    const x = el.textContent
+    if (leaf && x === SENT) return
+    if (leaf) owned = true
+    texts.push(clean(x))
+  })
+  el.innerHTML = html
+  const full = texts.reduce((a, b) => b.length > a.length ? b : a, '')
+  return { owned: owned || new Set(texts).size > 1, full: owned ? full : clean(el.textContent) }
+}
+const fresh = s => !selInfo || selInfo.el !== edSel || selInfo.s !== s || Math.abs(selInfo.t - sceneT()) > 1e-6
+
+// После новой версии кода: что уже стоит в коде, из правок убираем
+function settleEdits() {
+  let done = 0
+  try {
+    for (const r of Object.values(recs)) r.lost = !scenes.some(s => s.name === r.scene)
+    for (const s of scenes) {
+      const items = recsOf(s).filter(live).map(r => ({ r, el: elOf(s, r), best: '', at: null }))
+      if (!items.length) continue
+      const times = steps(s, 24), moments = [...new Set(items.map(it => it.r.t))]
+      sampleScene(s, times.concat(moments), null, (t, i) => {
+        for (const it of items) {
+          if (!it.el) continue
+          if (i < times.length) { const x = clean(it.el.textContent); if (x.length > it.best.length) it.best = x }
+          else if (!it.at && Math.abs(t - it.r.t) < 1e-9) it.at = centerOf(it.el, s)
+        }
+      })
+      for (const { r, el, best, at } of items) {
+        r.lost = !el
+        if (!el) continue
+        if (hasText(r) && el._origHTML == null && best === r.after) { r.before = r.after; r.after = null; done++ }
+        if (at && hasMove(r) && r.ox != null && Math.abs(at[0] - (r.ox + r.dx)) < 2.5 && Math.abs(at[1] - (r.oy + r.dy)) < 2.5) {
+          r.ox = at[0]; r.oy = at[1]; r.dx = 0; r.dy = 0; done++
+        }
+        // Ширина внесена, если такой стала видимая ширина или ширина самого блока
+        if (at && hasSize(r) && (Math.abs(at[2] - r.w) < 3 || Math.abs(at[3] - r.w) < 3)) { r.w = r.w0 = null; delete r.sz; done++ }
+      }
+    }
+    for (const [key, r] of Object.entries(recs)) if (!live(r)) delete recs[key]
+  } catch (e) { sampling = false }
+  saveRecs()
+  return done
+}
+// Сцены пересобраны: старые элементы больше не на экране
+function forgetFrame() {
+  elCache.clear()
+  styled.clear()
+  edSel = null; selInfo = null; edHov = null; edDrag = null; edSize = null; textEdit = null
+  if (noteFor) { noteFor = null; noteBox.style.display = 'none' }
+}
+
+// ---------- Правки: рамки, сетка, путь движения ----------
+function frameLines() {
+  const W = opts.width, H = opts.height, m = 96
+  const X = [{ v: W / 2, n: 'центру кадра' }], Y = [{ v: H / 2, n: 'середине кадра' }]
+  if (gridOn) {
+    X.push({ v: m, n: 'полю 96 px слева' }, { v: W - m, n: 'полю 96 px справа' }, { v: W / 3, n: 'левой трети кадра' }, { v: W * 2 / 3, n: 'правой трети кадра' })
+    Y.push({ v: m, n: 'полю 96 px сверху' }, { v: H - m, n: 'полю 96 px снизу' }, { v: H / 3, n: 'верхней трети кадра' }, { v: H * 2 / 3, n: 'нижней трети кадра' })
+  }
+  return { X, Y }
+}
+// Ось в названии центра обязательна: «центр по центру кадра» ИИ читает как центр по обеим осям
+const XN = ['левый край', 'центр по горизонтали', 'правый край'], YN = ['верх', 'середина по вертикали', 'низ']
+const XD = ['левому краю', 'центру', 'правому краю'], YD = ['верху', 'середине', 'низу']
+// Ближайшая линия кадра или край соседа. Центр прилипает к центру соседа, края к краям
+function snapAxis(pts, lines, nbrs, x, thr) {
+  let best = null
+  const N = x ? XN : YN, D = x ? XD : YD
+  pts.forEach((p, i) => lines.forEach(L => {
+    const d = L.v - p
+    if (Math.abs(d) <= thr && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: L.v, text: `${N[i]} по${NB}${L.n}` }
+  }))
+  for (const n of nbrs) {
+    const vals = x ? [n.l, n.l + n.w / 2, n.l + n.w] : [n.t, n.t + n.h / 2, n.t + n.h]
+    pts.forEach((p, i) => vals.forEach((v, j) => {
+      if ((i === 1) !== (j === 1)) return
+      const d = v - p
+      if (Math.abs(d) <= thr && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: v, text: `${N[i]} по${NB}${D[j]} ${n.name}` }
+    }))
+  }
+  return best
+}
+
+function paintEdit() {
+  const on = editOn && !inRec && scenes.length > 0
+  ov.hidden = !on
+  if (!on) return
+  const s = scenes[cur]
+  if (edSel && (!edSel.isConnected || !s || !s.el.contains(edSel))) { edSel = null; selInfo = null; paintModes() }
+  if (edHov && (!edHov.isConnected || !s || !s.el.contains(edHov))) edHov = null
+  const vr = view.getBoundingClientRect(), sr = stage.getBoundingClientRect()
+  const place = (box, el) => {
+    if (!el) { box.style.display = 'none'; return null }
+    const r = vrect(el)
+    Object.assign(box.style, { display: 'block', left: r.left - vr.left + 'px', top: r.top - vr.top + 'px', width: r.width + 'px', height: r.height + 'px' })
+    return r
+  }
+  place(hovBox, edHov && edHov !== edSel && !edDrag && !textEdit ? edHov : null)
+  selBox.classList.toggle('p-text', !!textEdit)
+  const r = place(selBox, textEdit ? textEdit.el : edSel)
+  const rec = edSel && s && !textEdit ? recs[keyOf(s, edSel)] : null
+  if (r && !textEdit) {
+    const k = stageK(), a = []
+    if (rec && rec.dx) a.push((rec.dx > 0 ? '→ ' : '← ') + Math.abs(rec.dx))
+    if (rec && rec.dy) a.push((rec.dy > 0 ? '↓ ' : '↑ ') + Math.abs(rec.dy))
+    const now = `${Math.round(r.width / k)} × ${Math.round(r.height / k)}`
+    if (rec && hasSize(rec)) a.push(rec.sz.prop ? `${Math.round(rec.w0)} × ${Math.round(rec.h0)} → ${now}` : `ширина ${Math.round(rec.w0)} → ${Math.round(r.width / k)}`)
+    else a.push(now)
+    dimBox.textContent = a.join('   ')
+    dimBox.style.display = 'block'
+    dimBox.style.left = Math.max(4, r.left - vr.left) + 'px'
+    dimBox.style.top = (r.bottom - vr.top + 28 < vr.height ? r.bottom - vr.top + 8 : Math.max(4, r.top - vr.top - 24)) + 'px'
+  } else dimBox.style.display = 'none'
+  // Сетка, линии привязки и путь движения рисуются в пикселях кадра
+  const W = opts.width, H = opts.height
+  Object.assign(ovSvg.style, { left: sr.left - vr.left + 'px', top: sr.top - vr.top + 'px', width: sr.width + 'px', height: sr.height + 'px' })
+  ovSvg.setAttribute('viewBox', `0 0 ${W} ${H}`)
+  const ln = (x1, y1, x2, y2, c, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="1" vector-effect="non-scaling-stroke"${dash ? ' stroke-dasharray="6 5"' : ''}/>`
+  let h = ''
+  if (gridOn) {
+    h += `<rect x="96" y="96" width="${W - 192}" height="${H - 192}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="6 5"/>`
+    for (const f of [1 / 3, 2 / 3]) h += ln(W * f, 0, W * f, H, 'rgba(255,255,255,.1)') + ln(0, H * f, W, H * f, 'rgba(255,255,255,.1)')
+    h += ln(W / 2, 0, W / 2, H, 'rgba(255,255,255,.16)') + ln(0, H / 2, W, H / 2, 'rgba(255,255,255,.16)')
+  }
+  for (const g of guides) h += g.x != null ? ln(g.x, 0, g.x, H, '#FF3D8B') : ln(0, g.y, W, g.y, '#FF3D8B')
+  if (selInfo && selInfo.moving && selInfo.el === edSel && !textEdit) {
+    const poly = (pts, c, dash) => `<polyline points="${pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" fill="none" stroke="${c}" stroke-width="1.5" vector-effect="non-scaling-stroke"${dash ? ' stroke-dasharray="6 5"' : ''}/>`
+    h += poly(selInfo.pts.map(p => [p[1], p[2]]), 'rgba(255,255,255,.4)', true)
+    if (rec && hasMove(rec)) {
+      const sc = selInfo.s
+      h += poly(selInfo.pts.map(p => { const w = weight(rec, p[0], sc.dur); return [p[1] + rec.dx * w, p[2] + rec.dy * w] }), '#4C8DFF')
+      const near = selInfo.pts.reduce((a, p) => Math.abs(p[0] - rec.t) < Math.abs(a[0] - rec.t) ? p : a, selInfo.pts[0])
+      const x = near[1] + rec.dx, y = near[2] + rec.dy, d = 8 / stageK()
+      h += `<rect x="${x - d}" y="${y - d}" width="${2 * d}" height="${2 * d}" fill="#4C8DFF" transform="rotate(45 ${x} ${y})"/>`
+    }
+  }
+  ovSvg.innerHTML = h
+}
+
+// ---------- Правки: выбор, перетаскивание, размер ----------
+function edSelect(el) {
+  edSel = el || null
+  selInfo = edSel ? probeMotion(scenes[cur], edSel) : null
+  paintModes()
+  paintEdit()
+}
+
+view.addEventListener('pointerdown', e => {
+  if (!editOn || inRec || e.button !== 0 || !scenes.length) return
+  if (e.target.closest('.p-note, .p-handle')) return
+  const x = e.clientX, y = e.clientY
+  if (textEdit) { if (textEdit.el.contains(e.target)) return; endText() }
+  if (noteFor) closeNote(true)
+  if (e.altKey) { e.preventDefault(); return }     // замечание ставит щелчок
+  // Выбранное тянется целиком, за что его ни возьми
+  const el = edSel && !e.shiftKey && inRect(vrect(edSel), x, y, 0) ? edSel : objectAt(x, y)
+  if (!el) { if (edSel) edSelect(null); return }
+  e.preventDefault()
+  pause()
+  if (el !== edSel) edSelect(el)
+  view.setPointerCapture(e.pointerId)
+  edDrag = { el, s: scenes[cur], sx: x, sy: y, on: false }
+})
+function beginMove(d) {
+  d.on = true
+  const s = d.s, t = sceneT()
+  if (fresh(s)) selInfo = probeMotion(s, d.el)
+  const r = recs[keyOf(s, d.el)], w = r ? weight(r, t, s.dur) : 0
+  const k = stageK(), sr = stage.getBoundingClientRect(), box = q => ({ l: (q.left - sr.left) / k, t: (q.top - sr.top) / k, w: q.width / k, h: q.height / k })
+  Object.assign(d, { t, k, ox: r ? r.dx * w : 0, oy: r ? r.dy * w : 0, r0: box(vrect(d.el)), lines: frameLines() })
+  d.nbrs = parts(s).filter(p => p !== d.el && !p.contains(d.el) && !d.el.contains(p) && shown(p)).map(p => Object.assign(box(vrect(p)), { name: labelOf(p) }))
+  pushHist()
+  view.classList.add('p-grabbing')
+}
+view.addEventListener('pointermove', e => {
+  if (!editOn || inRec) return
+  const d = edDrag
+  if (!d) {
+    if (e.buttons || textEdit) return
+    const h = objectAt(e.clientX, e.clientY)
+    if (h !== edHov) { edHov = h; view.style.cursor = h ? 'grab' : ''; paintEdit() }
+    return
+  }
+  if (!d.on) {
+    if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 3) return
+    beginMove(d)
+  }
+  let mx = (e.clientX - d.sx) / d.k, my = (e.clientY - d.sy) / d.k
+  const snaps = [], R0 = d.r0
+  guides = []
+  if (!(e.metaKey || e.ctrlKey)) {
+    const sx = snapAxis([R0.l + mx, R0.l + mx + R0.w / 2, R0.l + mx + R0.w], d.lines.X, d.nbrs, true, 6 / d.k)
+    const sy = snapAxis([R0.t + my, R0.t + my + R0.h / 2, R0.t + my + R0.h], d.lines.Y, d.nbrs, false, 6 / d.k)
+    if (sx) { mx += sx.d; snaps.push(sx.text); guides.push({ x: sx.at }) }
+    if (sy) { my += sy.d; snaps.push(sy.text); guides.push({ y: sy.at }) }
+  }
+  const r = ensureRec(d.s, d.el)
+  Object.assign(r, { dx: Math.round(d.ox + mx), dy: Math.round(d.oy + my), t: d.t, snap: snaps,
+    moving: selInfo.moving, ox: selInfo.nat[0], oy: selInfo.nat[1] })
+  render()
+})
+function endMove() {
+  const d = edDrag
+  if (!d) return
+  edDrag = null
+  view.classList.remove('p-grabbing')
+  if (!d.on) return
+  guides = []
+  const r = recs[keyOf(d.s, d.el)]
+  if (r && !live(r)) delete recs[r.key]
+  saveRecs()
+  render()
+}
+view.addEventListener('pointerup', endMove)
+view.addEventListener('pointercancel', endMove)
+view.addEventListener('dragstart', e => { if (editOn) e.preventDefault() })
+
+// Квадратик в углу: ширина блока с текстом, у фото и фигуры размер с теми же пропорциями.
+// Ширина одна на всю сцену, от движения не зависит
+handle.addEventListener('pointerdown', e => {
+  if (!edSel || e.button !== 0) return
+  e.preventDefault()
+  e.stopPropagation()
+  handle.setPointerCapture(e.pointerId)
+  const s = scenes[cur], el = edSel, r = recs[keyOf(s, el)]
+  pushHist()
+  edSize = { el, s, sx: e.clientX, info: r && r.sz ? null : sizeInfo(el), wNow: r && hasSize(r) ? r.w : vrect(el).width / stageK() }
+})
+handle.addEventListener('pointermove', e => {
+  const z = edSize
+  if (!z) return
+  const r = ensureRec(z.s, z.el)
+  if (z.info && !r.sz) Object.assign(r, z.info)
+  r.w = Math.max(16, Math.round(z.wNow + (e.clientX - z.sx) / stageK()))
+  render()
+})
+function endSize() {
+  const z = edSize
+  if (!z) return
+  edSize = null
+  const r = recs[keyOf(z.s, z.el)]
+  if (r && !live(r)) delete recs[r.key]
+  saveRecs()
+  render()
+}
+handle.addEventListener('pointerup', endSize)
+handle.addEventListener('pointercancel', endSize)
+
+function nudge(dx, dy) {
+  const s = scenes[cur], t = sceneT(), key = keyOf(s, edSel), old = recs[key]
+  if (fresh(s)) selInfo = probeMotion(s, edSel)
+  const w = old ? weight(old, t, s.dur) : 0, bx = old ? old.dx * w : 0, by = old ? old.dy * w : 0
+  // Серия нажатий стрелок это один шаг назад
+  if (!(edHist.nudge === key && Date.now() - edHist.nudgeT < 800)) pushHist()
+  edHist.nudge = key
+  edHist.nudgeT = Date.now()
+  const r = ensureRec(s, edSel)
+  Object.assign(r, { dx: Math.round(bx + dx), dy: Math.round(by + dy), t, snap: [], moving: selInfo.moving, ox: selInfo.nat[0], oy: selInfo.nat[1] })
+  if (!live(r)) delete recs[key]
+  saveRecs()
+  render()
+}
+
+// ---------- Правки: текст и замечания ----------
+view.addEventListener('dblclick', e => {
+  if (!editOn || inRec || !scenes.length) return
+  e.preventDefault()
+  const tel = textAt(e.clientX, e.clientY)
+  if (tel) { startText(scenes[cur], tel); return }
+  const deep = deepAt(e.clientX, e.clientY)
+  if (deep) edSelect(deep)
+})
+function startText(s, el) {
+  pause()
+  if (noteFor) closeNote(true)
+  const r = recs[keyOf(s, el)]
+  const p = probeText(s, el)
+  render()
+  const before = r && r.before != null ? r.before : p.full || clean(el.textContent)
+  textEdit = { el, s, before, owned: p.owned, html: el.innerHTML }
+  // Показываем весь текст, даже если код его сейчас набирает по буквам
+  if (!el.children.length) el.textContent = r && r.after != null ? r.after : before
+  el.setAttribute('contenteditable', 'plaintext-only')
+  if (!el.isContentEditable) el.setAttribute('contenteditable', 'true')
+  el.dataset.pEdit = '1'
+  edSel = null
+  selInfo = null
+  el.focus({ preventScroll: true })
+  const rg = document.createRange()
+  rg.selectNodeContents(el)
+  getSelection().removeAllRanges()
+  getSelection().addRange(rg)
+  paintEdit()
+}
+function endText() {
+  const te = textEdit
+  if (!te) return
+  textEdit = null
+  const { el, s, before, owned } = te
+  el.removeAttribute('contenteditable')
+  delete el.dataset.pEdit
+  getSelection().removeAllRanges()
+  // Пробел в начале и в конце исходного текста служебный, например зазор перед дописанным словом
+  // в пресете Apple. Выделение при правке захватывает и его, поэтому возвращаем, если он пропал
+  let after = clean(el.textContent)
+  const lead = before.match(/^[  ]+/), trail = before.match(/[  ]+$/)
+  if (after && lead && !/^[  ]/.test(after)) after = lead[0] + after
+  if (after && trail && !/[  ]$/.test(after)) after += trail[0]
+  if (!el.children.length && el.textContent !== after) el.textContent = after
+  const key = keyOf(s, el), old = recs[key]
+  if (after !== (old && old.after != null ? old.after : before)) {
+    pushHist()
+    const r = ensureRec(s, el)
+    Object.assign(r, { before, after: after === before ? null : after, owned, afterHTML: el.children.length ? el.innerHTML : null })
+    r.label = '«' + (before.length > 40 ? before.slice(0, 38) + '…' : before) + '»'
+    if (!hasMove(r) && !hasSize(r)) r.t = sceneT()
+    if (!live(r)) delete recs[key]
+    saveRecs()
+  }
+  if (el._origHTML == null && !owned) el._origHTML = te.html
+  styled.add(el)
+  render()
+}
+document.addEventListener('input', e => {
+  // Текст, который код не трогает, перерисовываем сразу: сцена может мерить его ширину
+  if (textEdit && e.target === textEdit.el && !textEdit.owned) render()
+  else if (textEdit && e.target === textEdit.el) paintEdit()
+})
+
+view.addEventListener('click', e => {
+  if (!editOn || inRec || !e.altKey) return
+  e.preventDefault()
+  e.stopPropagation()
+  const el = e.shiftKey ? deepAt(e.clientX, e.clientY) : objectAt(e.clientX, e.clientY)
+  if (el) openNote(el)
+}, true)
+function openNote(el) {
+  pause()
+  const s = scenes[cur], key = keyOf(s, el)
+  noteFor = { el, s, key, t: sceneT() }
+  noteIn.value = recs[key] ? recs[key].note || '' : ''
+  noteBox.style.display = 'block'
+  const r = vrect(el), vr = view.getBoundingClientRect()
+  noteBox.style.left = Math.max(8, Math.min(vr.width - noteBox.offsetWidth - 8, r.left - vr.left)) + 'px'
+  noteBox.style.top = Math.max(8, Math.min(vr.height - noteBox.offsetHeight - 8, r.bottom - vr.top + 8)) + 'px'
+  noteIn.focus()
+}
+function closeNote(keep) {
+  const n = noteFor
+  if (!n) return
+  noteFor = null
+  noteBox.style.display = 'none'
+  const v = noteIn.value.trim(), old = recs[n.key]
+  if (!keep || !n.el.isConnected || (old ? old.note || '' : '') === v) return
+  pushHist()
+  const r = ensureRec(n.s, n.el)
+  r.note = v
+  if (!hasMove(r) && !hasSize(r) && !hasText(r)) r.t = n.t
+  if (!live(r)) delete recs[n.key]
+  saveRecs()
+  render()
+}
+noteIn.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); closeNote(true) }
+  else if (e.key === 'Escape') { e.preventDefault(); closeNote(false) }
+  e.stopPropagation()
+})
+noteIn.addEventListener('blur', () => setTimeout(() => closeNote(true), 120))
+
+// ---------- Правки: клавиши, назад и вперёд ----------
+document.addEventListener('keydown', e => {
+  if (textEdit && e.target === textEdit.el) {
+    if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Escape') {
+      e.preventDefault()
+      const el = textEdit.el
+      endText()
+      edSelect(el)
+    } else if (e.code === 'Space' && (e.altKey || ((e.metaKey || e.ctrlKey) && e.shiftKey))) {
+      e.preventDefault()
+      document.execCommand('insertText', false, NB)   // неразрывный пробел
+    }
+    e.stopPropagation()
+    return
+  }
+  if (!editOn || inRec || typing(e.target) || $('dialog[open]')) return
+  const mod = e.metaKey || e.ctrlKey
+  if (mod && !e.altKey && (e.code === 'KeyZ' || e.code === 'KeyY')) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.code === 'KeyY' || e.shiftKey) redo(); else undo()
+    return
+  }
+  if (!edSel || mod || e.altKey) return
+  const step = e.shiftKey ? 10 : 1
+  const dir = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key]
+  if (dir) { e.preventDefault(); e.stopPropagation(); nudge(dir[0], dir[1]); return }
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); edSelect(null); return }
+  if (e.key === 'Enter') {
+    const tel = ownText(edSel) ? edSel : [...edSel.querySelectorAll('*')].find(ownText)
+    if (tel) { e.preventDefault(); e.stopPropagation(); startText(scenes[cur], tel) }
+    return
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    const key = keyOf(scenes[cur], edSel)
+    if (!recs[key]) return
+    e.preventDefault()
+    e.stopPropagation()
+    pushHist()
+    delete recs[key]
+    saveRecs()
+    selInfo = null
+    render()
+    say('Правка убрана')
+  }
+}, true)
+
+function pushHist() {
+  edHist.back.push(JSON.stringify(recs))
+  if (edHist.back.length > 200) edHist.back.shift()
+  edHist.fwd = []
+  edHist.nudge = null
+  paintModes()
+}
+function undo() {
+  if (!edHist.back.length) { say('Откатывать нечего'); return }
+  edHist.fwd.push(JSON.stringify(recs))
+  recs = JSON.parse(edHist.back.pop())
+  afterHist()
+}
+function redo() {
+  if (!edHist.fwd.length) { say('Возвращать нечего'); return }
+  edHist.back.push(JSON.stringify(recs))
+  recs = JSON.parse(edHist.fwd.pop())
+  afterHist()
+}
+function afterHist() {
+  if (textEdit) endText()
+  edHist.nudge = null
+  saveRecs()
+  render()
+}
+function clearEdits() {
+  const n = liveRecs().length
+  if (!n) { say('Правок нет'); return }
+  if (!confirm(`Убрать все правки из${NB}плеера (${n})?`)) return
+  pushHist()
+  recs = {}
+  saveRecs()
+  render()
+}
+
+// ---------- Правки: кнопки, отметки на таймлайне, запись для ИИ ----------
+function setEdit(on) {
+  editOn = !!on
+  if (editOn) pause()
+  else {
+    if (textEdit) endText()
+    if (noteFor) closeNote(true)
+    edSel = null; selInfo = null; edHov = null
+    view.style.cursor = ''
+  }
+  const b = $('[data-act="edit"]')
+  b.classList.toggle('p-on', editOn)
+  b.setAttribute('aria-pressed', editOn)
+  $('.p-keys').hidden = editOn
+  $('.p-editbar').hidden = !editOn
+  paintModes()
+  render()
+  if (editOn) say(`Тяните объект. Двойной щелчок правит текст, Alt${NB}+ щелчок оставляет замечание`)
+}
+function paintModes() {
+  const s = scenes[cur], r = edSel && s ? recs[keyOf(s, edSel)] : null
+  const m = r && hasMove(r) ? r.mode || 'all' : defMode
+  $$('[data-mode]').forEach(b => b.classList.toggle('p-on', b.dataset.mode === m))
+  $('[data-act="grid"]').classList.toggle('p-on', gridOn)
+  $('[data-act="undo"]').disabled = !edHist.back.length
+  $('[data-act="redo"]').disabled = !edHist.fwd.length
+}
+function setMode(m) {
+  defMode = m
+  const s = scenes[cur], r = edSel && s ? recs[keyOf(s, edSel)] : null
+  if (r && hasMove(r) && (r.mode || 'all') !== m) {
+    pushHist()
+    r.mode = m
+    saveRecs()
+    render()
+    if (!r.moving) say('Этот объект в сцене не движется, правка одинаковая на всей сцене')
+  }
+  paintModes()
+}
+function paintCount() {
+  const n = liveRecs().length
+  $('[data-act="ask"]').innerHTML = n ? `Для&nbsp;ИИ · ${n}` : 'Для&nbsp;ИИ'
+}
+function buildMarks() {
+  const box = $('.p-marks'), vt = viewTotal || 1
+  box.innerHTML = liveRecs().map(r => {
+    const s = scenes.find(x => x.name === r.scene)
+    if (!s) return ''
+    const at = s.start + Math.min(s.len, r.t * s.len / s.dur)
+    const noteOnly = !hasMove(r) && !hasSize(r) && !hasText(r)
+    return `<i class="p-mark${noteOnly ? ' p-mark-note' : ''}" style="left:${at / vt * 100}%" data-key="${esc(r.key)}" title="${esc(`${r.scene}, t = ${fmt(r.t)}, ${r.label}`)}"></i>`
+  }).join('')
+}
+function goToEdit(key) {
+  const r = recs[key], s = r && scenes.find(x => x.name === r.scene)
+  if (!s) return
+  seek(s.start + r.t * s.len / s.dur)
+  if (!editOn) setEdit(true)
+  const el = elOf(s, r)
+  if (el) edSelect(el)
+}
+
+function moveWords(r) {
+  const d = []
+  if (r.dx) d.push((r.dx > 0 ? 'вправо на ' : 'влево на ') + Math.abs(r.dx))
+  if (r.dy) d.push((r.dy > 0 ? 'вниз на ' : 'вверх на ') + Math.abs(r.dy))
+  return d.join(', ')
+}
+// Правки из кадра одним текстом для ИИ: по сценам, у каждой правки момент t из кода сцены
+function editsText() {
+  const list = liveRecs()
+  if (!list.length) return ''
+  const order = n => { const i = scenes.findIndex(s => s.name === n); return i < 0 ? 1e9 : i }
+  list.sort((a, b) => order(a.scene) - order(b.scene) || a.t - b.t)
+  const out = [`ПРАВКИ ИЗ ПЛЕЕРА · записей: ${list.length}`,
+    `кадр ${opts.width} × ${opts.height}, числа в пикселях кадра, t в секундах от начала сцены, как в её draw`]
+  let last = null, n = 0
+  for (const r of list) {
+    if (r.scene !== last) {
+      last = r.scene
+      const s = scenes.find(x => x.name === r.scene)
+      out.push('', `═══ «${r.scene}»${s ? ` · ${short(s.start)}-${short(s.start + s.len)} с ролика` : ' · такой сцены сейчас нет'}`)
+    }
+    out.push('', `[${++n}] t = ${fmt(r.t)} · ${r.label} · ${r.path}${r.lost ? ' · в кадре не нашёлся' : ''}`)
+    if (hasText(r)) {
+      out.push('- ' + forOut(r.before), '+ ' + forOut(r.after))
+      if (r.owned) out.push('  этот текст ставит draw, поменяй строку в коде сцены')
+    }
+    const mv = moveWords(r), how = r.moving ? ' · ' + MODE_TEXT[r.mode || 'all'] : ''
+    if (mv) out.push('  сдвиг: ' + mv + how)
+    if (hasSize(r)) out.push(r.sz.prop
+      ? `  размер: ${Math.round(r.w0)} × ${Math.round(r.h0)} → ${Math.round(r.w)} × ${Math.round(r.h0 * r.w / r.w0)}`
+      : `  ширина: ${Math.round(r.w0)} → ${Math.round(r.w)}, строки переносятся, размер букв тот же`)
+    if (mv && r.snap && r.snap.length) out.push('  выровнено: ' + r.snap.join(', '))
+    if (r.note && r.note.trim()) out.push('! ' + r.note.trim().replace(/\n+/g, '\n! '))
+  }
+  return out.join('\n')
+}
 
 // ---------- Запуск ----------
 updatePlay()
@@ -1302,6 +2235,11 @@ if (document.fonts) {
 // Для проверки и для агентов: управление плеером из консоли
 window.reelPlayer = {
   seek, play, pause, apply, fileHTML, askText,
+  // Правки в кадре. Закладка «Режим правок» на этой странице включает их через edit(true)
+  edit(on) { setEdit(on == null ? !editOn : on) },
+  edits: editsText,
+  editsData: () => JSON.parse(JSON.stringify(recs)),
+  clearEdits() { recs = {}; saveRecs(); render() },
   link: linkFile,
   get linked() { return link ? link.name : null },
   setLength(name, len) { const s = scenes.find(x => x.name === name); if (s) { s.len = len; retime(); saveLengths(); render() } },

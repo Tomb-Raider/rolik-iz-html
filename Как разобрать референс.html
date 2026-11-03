@@ -18,6 +18,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 .page { max-width: 1120px; margin: 0 auto; padding: 28px 24px 120px; }
+/* Общая шапка двух пакетов: «Ролик из HTML» и «Режим правок» всегда на одном месте */
+.top { display: flex; gap: 24px; margin-bottom: 10px; font-size: 15px; }
+.top a { color: var(--ui-mute); text-decoration: none; }
+.top a:hover { color: var(--ui-fg); }
+.top a.on { color: var(--ui-fg); font-weight: 600; }
 .nav { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-bottom: 72px; font-size: 14px; }
 .nav a { color: var(--ui-mute); text-decoration: none; }
 .nav a:hover, .nav a.on { color: var(--ui-fg); }
@@ -108,8 +113,11 @@ h2 + .sub { margin-top: 0; }
 <body>
 <div class="page">
 
+<nav class="top">
+  <a class="on" href="index.html">Ролик из HTML</a>
+  <a href="https://tomb-raider.github.io/rezhim-pravok/">Режим правок</a>
+</nav>
 <nav class="nav">
-  <a href="index.html">Ролик из HTML</a>
   <a href="Плеер.html">Плеер</a>
   <a href="Приёмы%20движения.html">Приёмы движения</a>
   <a class="on" href="Как%20разобрать%20референс.html">Как разобрать референс</a>
@@ -559,9 +567,12 @@ function exInit() {
     exSetSpeed(+b.dataset.speed)
     document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x === b))
   }))
-  // Ссылки открываются в новой вкладке, текущая страница остаётся открытой. Ссылка на текущую страницу не нужна
+  // Свои страницы и «Режим правок» открываются в этой же вкладке, чтобы работала кнопка «Назад».
+  // Чужие сайты в новой вкладке. Ссылка на текущую страницу не нужна
   document.querySelectorAll('a[href]').forEach(a => {
-    if (a.classList.contains('on')) { a.removeAttribute('href'); return }
+    if (a.classList.contains('on') && !a.closest('.top')) { a.removeAttribute('href'); return }
+    const u = new URL(a.href, location.href)
+    if (u.origin === location.origin || u.protocol === 'file:' || u.href.startsWith('https://tomb-raider.github.io/')) return
     a.target = '_blank'
     a.rel = 'noopener'
   })
