@@ -118,6 +118,10 @@ pre.prompt {
 .src a { color: var(--ui-mute); }
 .src a:hover { color: var(--ui-fg); }
 .sources li { color: var(--ui-mute); }
+/* Подвал: контакты автора, под ними строка о статистике Метрики */
+.foot { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 96px; font-size: 14px; color: var(--ui-mute); }
+.foot a { color: var(--ui-mute); }
+.foot a:hover { color: var(--ui-fg); }
 
 @media (max-width: 640px) {
   .page { padding: 20px 16px 96px; }
@@ -1020,6 +1024,10 @@ scene({
 
 <p class="mute" style="margin-top: 72px">Агент в папке берёт код отсюда сам. Напишите ему, например, «сделай сцену по приёму Кольцо прогресса из Приёмы движения.html»</p>
 
+
+<div class="foot">
+  <span class="who">Сделала Вероника Малышева, вопросы и&nbsp;идеи пишите в&nbsp;<a href="https://t.me/night_fury_t">Telegram @night_fury_t</a></span>
+</div>
 </div>
 <script>
 'use strict'
